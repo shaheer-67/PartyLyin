@@ -74,7 +74,7 @@ export default function Home() {
                   className="font-extrabold tracking-tight leading-[1]"
                   style={{ fontSize: "clamp(2.4rem, 4.5vw, 3.8rem)", textShadow: "0 4px 24px rgba(0,0,0,0.30)" }}
                 >
-                  It starts with{" "}
+                  Ɪt starts with{" "}
                   <span style={{
                     background: "linear-gradient(90deg,#86efac,#22c55e)",
                     WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",

@@ -2,9 +2,9 @@
 
 export type CallMode = "Video" | "Voice";
 export type RoomType = "1-on-1" | "Group of 5" | "Group of 10";
-export type Gender = "Everyone" | "Women" | "Men" | "Non-binary";
-export type AgeGroup = "18–24" | "25–34" | "35–44" | "45+";
-export type Location = "Local" | "National";
+export type Gender = "Mixed Group" | "All Females" | "All Males" | "All TransMales" | "All TransFemales";
+export type AgeGroup = "Any Age" | "18 to 24 Young Adults" | "25 to 30 Adults" | "31 to 50 Grown Folks" | "51 to 65 Seniors" | "66 to 85 Elderly" | "86+";
+export type Location = "Zip Code" | "City" | "County" | "State" | "National";
 export type LieTag = "All" | "Sleep" | "Work" | "Food" | "Social";
 export type AppTab = "home" | "lies" | "me" | "call";
 

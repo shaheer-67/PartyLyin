@@ -25,9 +25,9 @@ interface LobbyProps {
 export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProps) {
   const [mode, setMode] = useState<CallMode>("Video");
   const [type, setType] = useState<RoomType>("Group of 5");
-  const [who, setWho] = useState<Gender>("Everyone");
-  const [age, setAge] = useState<AgeGroup>("25–34");
-  const [where, setWhere] = useState<Location>("Local");
+  const [who, setWho] = useState<Gender>("Mixed Group");
+  const [age, setAge] = useState<AgeGroup>("Any Age");
+  const [where, setWhere] = useState<Location>("National");
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -65,10 +65,7 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
           {/* Decorative glow blob */}
           <div className="absolute -top-24 -right-16 w-64 h-64 rounded-full grad opacity-40 blur-3xl" />
 
-          {/* Online count & tagline */}
-          <p className="relative text-sm font-semibold" style={{ color: "var(--mute)" }}>
-            12,480 people online near you {/* TODO: real count from Firestore */}
-          </p>
+          {/* Tagline */}
           <h1 className="relative text-[2.6rem] leading-none font-extrabold tracking-tight mt-1">
             Nobody
             <br />
@@ -102,25 +99,25 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
               />
             </div>
             <div>
-              <p className="font-bold mb-2">Meet</p>
+              <p className="font-bold mb-2 text-sm uppercase tracking-wider" style={{ color: "var(--mute)" }}>Meet</p>
               <Chips
-                opts={["Everyone", "Women", "Men", "Non-binary"]}
+                opts={["Mixed Group", "All Females", "All Males", "All TransMales", "All TransFemales"]}
                 value={who}
                 onChange={(v) => setWho(v as Gender)}
               />
             </div>
             <div>
-              <p className="font-bold mb-2">Age group</p>
+              <p className="font-bold mb-2 text-sm uppercase tracking-wider" style={{ color: "var(--mute)" }}>Age group</p>
               <Chips
-                opts={["18–24", "25–34", "35–44", "45+"]}
+                opts={["Any Age", "18 to 24 Young Adults", "25 to 30 Adults", "31 to 50 Grown Folks", "51 to 65 Seniors", "66 to 85 Elderly", "86+"]}
                 value={age}
                 onChange={(v) => setAge(v as AgeGroup)}
               />
             </div>
             <div>
-              <p className="font-bold mb-2">Where</p>
+              <p className="font-bold mb-2 text-sm uppercase tracking-wider" style={{ color: "var(--mute)" }}>Where</p>
               <Chips
-                opts={["Local", "National"]}
+                opts={["Zip Code", "City", "County", "State", "National"]}
                 value={where}
                 onChange={(v) => setWhere(v as Location)}
               />
