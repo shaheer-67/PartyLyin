@@ -1,22 +1,179 @@
 @tailwind base;@tailwind components;@tailwind utilities;
-:root{--bg:#f7f3ee;--card:rgba(255,255,255,.75);--ink:#1d1b1a;--mute:#6f6760;--line:rgba(0,0,0,.08);--amb:#ffb020;--cor:#ff4f5e;--alt:#ece5db;--shell:#e9e2d9}
-@media (prefers-color-scheme:dark){:root{--bg:#17181c;--card:rgba(255,255,255,.07);--ink:#f5f1ec;--mute:#a09992;--line:rgba(255,255,255,.1);--alt:#1e2025;--shell:#0d0e10}}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b),system-ui,sans-serif}
-@layer components{
-.grad{background:linear-gradient(135deg,var(--amb),var(--cor))}
-.gtxt{background:linear-gradient(135deg,var(--amb),var(--cor));-webkit-background-clip:text;background-clip:text;color:transparent}
-.glass{background:var(--card);border:1px solid var(--line);backdrop-filter:blur(18px);box-shadow:0 10px 34px rgba(0,0,0,.12)}
-.chip{padding:.55rem 1rem;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:.875rem}
-.chip[aria-pressed=true]{background:linear-gradient(135deg,var(--amb),var(--cor));color:#fff;border-color:transparent;box-shadow:0 6px 18px rgba(255,79,94,.35)}
-.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.9rem 1.6rem;border-radius:999px;font-weight:800}
-.wrap{max-width:1080px;margin:0 auto;padding:0 1.25rem}
-.cta{animation:pulse 2.2s infinite}
-.tile{position:relative;border-radius:26px;overflow:hidden;min-height:0}
-.speak{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--cor),0 0 28px 6px rgba(255,176,32,.55)}
-.scroll{overflow-y:auto;scrollbar-width:none}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PARTYLYIN — Design System
+   Brand Colors:
+     Purple  #7c3aed  → primary brand, gradients, active states
+     Pink    #ec4899  → secondary accent, gradient endpoint
+     Green   #16a34a  → CTA actions, live/speaker ring, success
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Light Mode ──────────────────────────────────────────────────────── */
+:root {
+  --bg:      #ffffff;
+  --alt:     #f8f5ff;          /* very faint purple tint for alternate sections */
+  --card:    rgba(255,255,255,0.80);
+  --shell:   #1a0d2e;
+
+  --ink:     #1a0033;          /* near-black with purple undertone */
+  --mute:    #7c6fa0;          /* muted purple-grey */
+  --line:    rgba(124,58,237,0.14);
+
+  /* Brand palette */
+  --purple:  #7c3aed;
+  --pink:    #ec4899;
+  --green:   #16a34a;
+
+  /* Legacy aliases */
+  --amb: #7c3aed;
+  --cor: #ec4899;
 }
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,79,94,.55)}50%{box-shadow:0 0 0 16px rgba(255,79,94,0)}}
-.phone{width:100%;max-width:400px;height:100dvh;max-height:820px;margin:auto;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column}
-@media(min-width:520px){body.appbody{background:var(--shell);display:grid;place-items:center;height:100dvh}.phone{border-radius:44px;border:8px solid #000;box-shadow:0 30px 80px rgba(0,0,0,.35)}}
-@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+
+/* ── Dark Mode ───────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:    #0d0a1a;          /* very dark purple-black */
+    --alt:   #130e24;          /* slightly lighter for alt sections */
+    --card:  rgba(255,255,255,0.055);
+    --shell: #07050f;
+
+    --ink:   #f0eaff;
+    --mute:  #9d8ec0;
+    --line:  rgba(167,139,250,0.14);
+  }
+}
+
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-b), system-ui, sans-serif;
+}
+
+@layer components {
+
+  /* ── Primary gradient: purple → pink ──────────────────────────────── */
+  .grad {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+  }
+
+  /* ── Gradient text: purple → pink ─────────────────────────────────── */
+  .gtxt {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── Glassmorphism card ────────────────────────────────────────────── */
+  .glass {
+    background: var(--card);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(124,58,237,0.10);
+  }
+
+  /* ── Filter chip — idle ────────────────────────────────────────────── */
+  .chip {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .chip:hover {
+    border-color: var(--purple);
+    color: var(--purple);
+  }
+
+  /* ── Filter chip — active ──────────────────────────────────────────── */
+  .chip[aria-pressed=true] {
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.40);
+  }
+
+  /* ── Base button ───────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 999px;
+    font-weight: 800;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+
+  /* ── Max-width content wrapper ─────────────────────────────────────── */
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  /* ── CTA pulse — green glow ────────────────────────────────────────── */
+  .cta { animation: pulse-green 2.4s infinite; }
+
+  /* ── Video tile (in call room) ─────────────────────────────────────── */
+  .tile { position: relative; border-radius: 24px; overflow: hidden; min-height: 0; }
+
+  /* ── Active speaker ring — GREEN ───────────────────────────────────── */
+  .speak {
+    box-shadow:
+      0 0 0 3px var(--bg),
+      0 0 0 5px #16a34a,
+      0 0 24px 6px rgba(22,163,74,0.50);
+  }
+
+  /* ── Scrollable (hide scrollbar) ──────────────────────────────────── */
+  .scroll { overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+}
+
+/* ── CTA green pulse animation ─────────────────────────────────────────── */
+@keyframes pulse-green {
+  0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.55); }
+  50%      { box-shadow: 0 0 0 14px rgba(22,163,74,0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Mobile App Shell
+   ═══════════════════════════════════════════════════════════════════════ */
+.phone {
+  width: 100%;
+  max-width: 400px;
+  height: 100dvh;
+  max-height: 820px;
+  margin: auto;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 520px) {
+  body.appbody {
+    background: var(--shell);
+    display: grid;
+    place-items: center;
+    height: 100dvh;
+  }
+  .phone {
+    border-radius: 48px;
+    border: 7px solid #1e1035;
+    box-shadow:
+      0 0 0 1px rgba(124,58,237,0.30),
+      0 32px 80px rgba(0,0,0,0.60),
+      0 0 60px rgba(124,58,237,0.20);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }

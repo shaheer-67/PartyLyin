@@ -1,0 +1,185 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Timer, Mic, MicOff, Video, VideoOff, MessageCircle, PhoneOff, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { formatTime } from "@/lib/utils";
+import { PLACEHOLDER_PARTICIPANTS, TURN_DURATION_SECONDS } from "@/lib/constants";
+import { ParticipantTile } from "./ParticipantTile";
+
+interface CallRoomProps {
+  minutes: number;
+  onReup: () => void;
+  onLeave: () => void;
+}
+
+const CTL = "flex flex-col items-center gap-1";
+const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all";
+
+/**
+ * Full-screen call room.
+ *
+ * Tools are rendered in TWO places (per client requirement):
+ *  1. TOP BAR  — timer + ReUp + room info (always visible)
+ *  2. VIDEO OVERLAY TOOLBAR — mute, camera, chat, leave
+ *     - Pinned to the BOTTOM of the video grid (above the grid bottom edge)
+ *     - User can collapse it with the chevron arrow; it re-expands on hover/tap
+ *
+ * TODO (Phase 4): wire chat panel, real participants, real media streams.
+ */
+export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
+  const [tick, setTick] = useState(0);
+  const [bonusSeconds, setBonusSeconds] = useState(0);
+  const [muted, setMuted] = useState(false);
+  const [camOn, setCamOn] = useState(true);
+  const [toolsVisible, setToolsVisible] = useState(true);
+  const [unread] = useState(3);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const totalSeconds = minutes * 60 + bonusSeconds;
+  const secondsLeft = Math.max(0, totalSeconds - tick);
+  const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % PLACEHOLDER_PARTICIPANTS.length;
+  const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
+  const nextSpeakerIndex = (speakerIndex + 1) % PLACEHOLDER_PARTICIPANTS.length;
+
+  function handleReup() {
+    setBonusSeconds((b) => b + 15 * 60);
+    onReup();
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 relative text-white" style={{ background: "#101114" }}>
+
+      {/* ══ TOP BAR — always visible ════════════════════════════════ */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+        {/* Session countdown */}
+        <div className="rounded-full px-4 py-2 flex items-center gap-2 font-extrabold text-lg bg-white/10 border border-white/10">
+          <Timer className="w-5 h-5 text-amber-400" />
+          {formatTime(secondsLeft)}
+        </div>
+
+        {/* Room info badge */}
+        <span className="text-xs text-white/50 font-medium">Group of 5 · 2 min / turn</span>
+
+        {/* ReUp button — also in top bar for quick access */}
+        <button
+          onClick={handleReup}
+          className="grad rounded-full px-3 py-2 font-extrabold text-xs flex items-center gap-1"
+          aria-label="Add 15 more minutes"
+        >
+          <Plus className="w-3.5 h-3.5" />+15 Mins
+        </button>
+      </div>
+
+      {/* ══ VIDEO GRID — fills remaining space ══════════════════════ */}
+      <div className="relative flex-1 min-h-0 px-3 pb-3">
+
+        {/* Participant tiles */}
+        <div
+          className="h-full grid grid-cols-2 gap-2"
+          style={{ gridTemplateRows: "repeat(3,1fr)" }}
+        >
+          {PLACEHOLDER_PARTICIPANTS.map((participant, i) => (
+            <ParticipantTile
+              key={participant.name}
+              participant={participant}
+              index={i}
+              isSpeaker={i === speakerIndex}
+              isNext={i === nextSpeakerIndex}
+              turnSecondsLeft={turnSecondsLeft}
+            />
+          ))}
+        </div>
+
+        {/* ── VIDEO OVERLAY TOOLBAR ─────────────────────────────────
+            Pinned to the bottom of the video grid so it sits ON TOP
+            of the video tiles — fulfilling "tools on the video display screen".
+            Has a toggle chevron to collapse/expand.                         */}
+        <div
+          className="absolute left-3 right-3 bottom-0"
+          style={{ transition: "transform 0.3s ease" }}
+        >
+          {/* Collapse/expand handle */}
+          <div className="flex justify-center mb-1">
+            <button
+              onClick={() => setToolsVisible((v) => !v)}
+              className="w-8 h-5 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+              aria-label={toolsVisible ? "Hide controls" : "Show controls"}
+            >
+              {toolsVisible
+                ? <ChevronDown className="w-3.5 h-3.5" />
+                : <ChevronUp className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Toolbar pill — slides down when hidden */}
+          <div
+            className="rounded-2xl px-4 py-3 flex items-end justify-around backdrop-blur-xl border border-white/15"
+            style={{
+              background: "rgba(10,10,14,0.72)",
+              transform: toolsVisible ? "translateY(0)" : "translateY(110%)",
+              transition: "transform 0.3s ease",
+              pointerEvents: toolsVisible ? "auto" : "none",
+            }}
+          >
+            {/* Mute */}
+            <button
+              className={`${CTL}`}
+              onClick={() => setMuted((m) => !m)}
+              aria-label={muted ? "Unmute" : "Mute"}
+            >
+              <span className={`${ICON_BTN} ${muted ? "bg-rose-600" : "bg-white/15"}`}>
+                {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </span>
+              <span className="text-[10px] text-white/60 font-semibold">{muted ? "Unmute" : "Mute"}</span>
+            </button>
+
+            {/* Camera */}
+            <button
+              className={`${CTL}`}
+              onClick={() => setCamOn((c) => !c)}
+              aria-label={camOn ? "Stop camera" : "Start camera"}
+            >
+              <span className={`${ICON_BTN} ${!camOn ? "bg-rose-600" : "bg-white/15"}`}>
+                {camOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </span>
+              <span className="text-[10px] text-white/60 font-semibold">{camOn ? "Camera" : "No Cam"}</span>
+            </button>
+
+            {/* Chat */}
+            <button className={`${CTL} relative`} aria-label="Chat">
+              <span className={`${ICON_BTN} bg-white/15`}>
+                <MessageCircle className="w-5 h-5" />
+                {unread > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[10px] font-bold grid place-items-center">
+                    {unread}
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] text-white/60 font-semibold">Chat</span>
+            </button>
+
+            {/* ReUp — also in toolbar for thumb reach */}
+            <button className={`${CTL}`} onClick={handleReup} aria-label="Add 15 minutes">
+              <span className={`${ICON_BTN} grad`}>
+                <Plus className="w-5 h-5" />
+              </span>
+              <span className="text-[10px] text-white/60 font-semibold">ReUp</span>
+            </button>
+
+            {/* Leave */}
+            <button className={`${CTL}`} onClick={onLeave} aria-label="Leave call">
+              <span className={`${ICON_BTN} bg-rose-600`}>
+                <PhoneOff className="w-5 h-5" />
+              </span>
+              <span className="text-[10px] text-white/60 font-semibold">Leave</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
