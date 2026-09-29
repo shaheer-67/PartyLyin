@@ -144,14 +144,11 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Mobile App Shell
+   Mobile App Shell & Responsive Layout
    ═══════════════════════════════════════════════════════════════════════ */
 .phone {
   width: 100%;
-  max-width: 400px;
   height: 100dvh;
-  max-height: 820px;
-  margin: auto;
   background: var(--bg);
   position: relative;
   overflow: hidden;
@@ -159,20 +156,56 @@ body {
   flex-direction: column;
 }
 
-@media (min-width: 520px) {
+/* On mobile, keep it contained if on a larger tablet, but mostly full screen */
+@media (max-width: 767px) {
+  .phone {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+/* On Desktop (laptop+), remove the phone simulation and make it a full web app */
+@media (min-width: 768px) {
   body.appbody {
     background: var(--shell);
-    display: grid;
-    place-items: center;
-    height: 100dvh;
   }
   .phone {
-    border-radius: 48px;
-    border: 7px solid #1e1035;
-    box-shadow:
-      0 0 0 1px rgba(124,58,237,0.30),
-      0 32px 80px rgba(0,0,0,0.60),
-      0 0 60px rgba(124,58,237,0.20);
+    max-width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    flex-direction: row; /* Switch to row layout for Sidebar + Main Content */
+  }
+  /* The navigation becomes a sidebar on desktop */
+  .phone > nav {
+    flex-direction: column !important;
+    width: 280px;
+    height: 100%;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-right: 1px solid var(--line);
+    background: var(--bg);
+    padding: 2rem 1rem !important;
+    justify-content: flex-start !important;
+    gap: 1rem;
+  }
+  .phone > nav button {
+    flex-direction: row !important;
+    padding: 1rem 1.5rem !important;
+    font-size: 1rem !important;
+    justify-content: flex-start !important;
+    gap: 1rem !important;
+  }
+  /* The active screen fills the remaining space */
+  .phone > .flex-1, .phone > div {
+    flex: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    background: var(--bg);
   }
 }
 
