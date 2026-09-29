@@ -29,10 +29,6 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
           <div className="w-24 h-24 rounded-full grad grid place-items-center text-4xl font-extrabold text-white">
             M
           </div>
-          {/* Verified badge */}
-          <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 grid place-items-center border-2 border-[var(--bg)]">
-            <BadgeCheck className="w-4 h-4 text-white" />
-          </span>
         </div>
         <h3 className="text-2xl font-extrabold mt-3">Maya, 29</h3>
         <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
