@@ -1,11 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Flame, Wallet, MessageSquareQuote, UserRound } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { Flame, Wallet, MessageSquareQuote, UserRound, ShieldAlert } from "lucide-react";
+import { auth, db } from "@/lib/firebase";
+import AuthScreen from "@/components/auth/AuthScreen";
 import Lobby from "@/components/lobby/Lobby";
 import CallRoom from "@/components/call/CallRoom";
 import Lies from "@/components/lies/Lies";
 import WalletSheet from "@/components/wallet/WalletSheet";
 import ProfilePage from "@/components/profile/ProfilePage";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 import type { AppTab } from "@/types";
 
 // ── Bottom nav config ─────────────────────────────────────────────────────────
@@ -16,28 +21,34 @@ const NAV_ITEMS: Array<{ id: AppTab | "wallet"; label: string; Icon: typeof Flam
   { id: "me",     label: "Profile", Icon: UserRound         },
 ];
 
-/**
- * Root screen for the /app route.
- *
- * Flow for "Find My Party":
- *   Lobby → Lies (findPartyMode=true, location filter) → CallRoom
- *
- * Normal "Lies" tab → Lies (standard feed, no findPartyMode)
- *
- * TODO (Phase 4): replace useState wallet with useWallet hook (Firestore-backed).
- * TODO (Phase 4): replace tab state with Next.js router for deep-linking.
- */
 export default function AppPage() {
-  const [tab, setTab] = useState<AppTab>("home");
-  const [walletMinutes, setWalletMinutes] = useState(45);
+  const [authReady, setAuthReady]         = useState(false);
+  const [uid, setUid]                     = useState<string | null>(null);
+  const [walletMinutes, setWalletMinutes] = useState(0);
+  const [tab, setTab]                     = useState<AppTab>("home");
   const [walletSheetOpen, setWalletSheetOpen] = useState(false);
-  const [callMinutes, setCallMinutes] = useState(45);
-
-  /**
-   * findPartyMode — true when user arrives at Lies from "FIND MY PARTY".
-   * False when user navigates via the bottom-nav Lies tab directly.
-   */
+  const [callMinutes, setCallMinutes]     = useState(0);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [findPartyMode, setFindPartyMode] = useState(false);
+
+  // ── Listen to Firebase Auth state ──────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUid(user.uid);
+        // Load wallet minutes from Firestore
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          setWalletMinutes(snap.data().walletMinutes ?? 0);
+        }
+      } else {
+        setUid(null);
+        setWalletMinutes(0);
+      }
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, []);
 
   // Apply mobile app shell styling to body
   useEffect(() => {
@@ -46,7 +57,9 @@ export default function AppPage() {
   }, []);
 
   /** "FIND MY PARTY" pressed in Lobby → go to Lies in discovery mode */
-  function handleFindParty() {
+  function handleFindParty(roomId: string, filters: { mode: string; type: string }) {
+    void filters; // filters stored in the room doc
+    setCurrentRoomId(roomId);
     setCallMinutes(walletMinutes);
     setFindPartyMode(true);
     setTab("lies");
@@ -70,12 +83,37 @@ export default function AppPage() {
     if (id === "wallet") {
       setWalletSheetOpen(true);
     } else {
-      // Direct nav always clears findPartyMode
       if (id === "lies") setFindPartyMode(false);
       setTab(id);
     }
   }
 
+  // ── Loading splash ────────────────────────────────────────────────────────
+  if (!authReady) {
+    return (
+      <div style={{
+        minHeight: "100dvh", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(135deg, #0d0a1a 0%, #1a0d2e 50%, #0d1a0a 100%)",
+      }}>
+        <div className="text-4xl font-extrabold tracking-tight text-white mb-4">
+          Party<span className="gtxt">LyiN</span>
+        </div>
+        <div style={{
+          width: "36px", height: "36px", borderRadius: "50%",
+          border: "3px solid rgba(124,58,237,0.3)",
+          borderTop: "3px solid #7c3aed",
+          animation: "spin 0.8s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // ── Not logged in → show Auth ─────────────────────────────────────────────
+  if (!uid) return <AuthScreen />;
+
+  // ── Logged in → show app ──────────────────────────────────────────────────
   return (
     <main className="phone">
       {/* ── Screens ─────────────────────────────────────────────── */}
@@ -89,8 +127,9 @@ export default function AppPage() {
       {tab === "call" && (
         <CallRoom
           minutes={callMinutes}
+          roomId={currentRoomId ?? undefined}
           onReup={handleReup}
-          onLeave={() => setTab("home")}
+          onLeave={() => { setCurrentRoomId(null); setTab("home"); }}
         />
       )}
       {tab === "lies" && (
@@ -99,7 +138,17 @@ export default function AppPage() {
           onJoinCall={handleJoinCall}
         />
       )}
-      {tab === "me" && <ProfilePage onSignOut={() => {/* TODO: Firebase sign-out */}} />}
+      {tab === "me" && (
+        <ProfilePage
+          onOpenAdmin={() => {
+            window.location.href = "/admin";
+          }}
+          onSignOut={async () => {
+            const { signOut } = await import("firebase/auth");
+            await signOut(auth);
+          }}
+        />
+      )}
 
       {/* ── Bottom navigation (hidden in call) ──────────────────── */}
       {tab !== "call" && (

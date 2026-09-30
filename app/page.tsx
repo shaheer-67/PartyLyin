@@ -38,7 +38,7 @@ export default function Home() {
           </nav>
           <Link href="/app" className="px-4 py-2 rounded-full font-bold text-sm text-white grad flex items-center gap-1.5" style={{ boxShadow: "0 4px 14px rgba(124,58,237,0.45)" }}>
             <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-            Get the app
+            Register
           </Link>
         </div>
       </header>

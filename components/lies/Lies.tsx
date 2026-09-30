@@ -1,6 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, PenLine, MapPin, PhoneCall } from "lucide-react";
+import {
+  collection, query, orderBy, limit, onSnapshot,
+  addDoc, updateDoc, doc, increment, serverTimestamp,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { Chips } from "@/components/ui/Chips";
 import { LieCard } from "./LieCard";
 import { toggleSet } from "@/lib/utils";
@@ -39,43 +44,84 @@ interface LiesProps {
  */
 export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   // ── State ─────────────────────────────────────────────────────────────────
-  const [lies, setLies] = useState<Lie[]>(SEED_LIES);
-  const [query, setQuery] = useState("");
+  const [lies, setLies] = useState<Lie[]>(SEED_LIES); // seed shown while Firestore loads
+  const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<LieTag>("All");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [openChatIds, setOpenChatIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<LocationScope>("Local");
   const [selectedLieId, setSelectedLieId] = useState<string | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [newLieText, setNewLieText] = useState("");
+  const [newLieTag, setNewLieTag] = useState<Exclude<LieTag, "All">>("Social");
+
+  // ── Firestore real-time subscription ─────────────────────────────────────
+  useEffect(() => {
+    const q = query(
+      collection(db, "lies"),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      if (snap.empty) return; // keep seed data if collection empty
+      const fetched: Lie[] = snap.docs.map((d) => ({
+        id: d.id,
+        text: d.data().text,
+        tag: d.data().tag,
+        n: d.data().n ?? 0,
+        authorId: d.data().authorId,
+      }));
+      setLies(fetched);
+    });
+    return () => unsub();
+  }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const shownLies = lies.filter(
     (l) =>
-      l.text.toLowerCase().includes(query.toLowerCase()) &&
+      l.text.toLowerCase().includes(search.toLowerCase()) &&
       (activeTag === "All" || l.tag === activeTag)
   );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  function handleLike(id: string) {
+  async function handleLike(id: string) {
     setLikedIds((prev) => toggleSet(prev, id));
+    // Optimistically increment/decrement in Firestore
+    const wasLiked = likedIds.has(id);
+    try {
+      await updateDoc(doc(db, "lies", id), {
+        n: increment(wasLiked ? -1 : 1),
+      });
+    } catch {
+      // Revert on error
+      setLikedIds((prev) => toggleSet(prev, id));
+    }
   }
 
   function handleChat(id: string) {
     setOpenChatIds((prev) => toggleSet(prev, id));
-    // In findPartyMode, selecting a lie means choosing it as conversation starter
     if (findPartyMode) setSelectedLieId(id);
   }
 
-  function handlePostLie() {
-    // TODO (Phase 4): replace with PostLieModal + Firestore write
-    const text = prompt("Your lie (keep it funny):");
-    if (!text) return;
-    const newLie: Lie = {
-      id: Date.now().toString(),
-      text,
-      tag: "Social",
-      n: 0,
-    };
-    setLies((prev) => [newLie, ...prev]);
+  async function handlePostLie() {
+    if (!newLieText.trim()) return;
+    setPosting(true);
+    try {
+      await addDoc(collection(db, "lies"), {
+        text: newLieText.trim(),
+        tag: newLieTag,
+        n: 0,
+        authorId: auth.currentUser?.uid ?? "anonymous",
+        createdAt: serverTimestamp(),
+      });
+      setNewLieText("");
+      setShowPostModal(false);
+    } catch (e) {
+      console.error("Failed to post lie:", e);
+    } finally {
+      setPosting(false);
+    }
   }
 
   const scopeColor = SCOPE_COLORS[scope];
@@ -147,8 +193,8 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         <label className="glass rounded-full mt-3 px-4 py-2.5 flex items-center gap-2">
           <Search className="w-4 h-4" style={{ color: "var(--mute)" }} />
           <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Search lies"
             className="bg-transparent flex-1 outline-none text-sm"
             aria-label="Search lies"
@@ -214,12 +260,68 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
       {/* ── Post lie FAB ─────────────────────────────────────────── */}
       {!findPartyMode && (
         <button
-          onClick={handlePostLie}
+          onClick={() => setShowPostModal(true)}
           className="absolute right-5 bottom-4 w-14 h-14 rounded-full grad text-white grid place-items-center shadow-xl"
           aria-label="Post a lie"
         >
           <PenLine className="w-6 h-6" />
         </button>
+      )}
+
+      {/* ── Post Lie Modal ───────────────────────────────────────── */}
+      {showPostModal && (
+        <div
+          className="absolute inset-0 z-40 flex items-end bg-black/60"
+          onClick={(e) => e.target === e.currentTarget && setShowPostModal(false)}
+        >
+          <div className="w-full rounded-t-[28px] p-5 flex flex-col gap-4" style={{ background: "var(--bg)" }}>
+            <h3 className="text-xl font-extrabold">Post a Lie 🤥</h3>
+            <textarea
+              value={newLieText}
+              onChange={(e) => setNewLieText(e.target.value)}
+              placeholder={`"I only hit snooze once." (keep it funny!)`}
+              className="auth-input resize-none"
+              rows={3}
+              maxLength={140}
+              autoFocus
+            />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--mute)" }}>Tag</p>
+              <div className="flex flex-wrap gap-2">
+                {(["Sleep", "Work", "Food", "Social"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setNewLieTag(t)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-all ${
+                      newLieTag === t
+                        ? "grad text-white border-transparent"
+                        : "border-white/20 text-white/60 hover:border-white/40"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPostModal(false)}
+                className="flex-1 py-3 rounded-full font-bold glass"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePostLie}
+                disabled={posting || !newLieText.trim()}
+                className="flex-1 py-3 rounded-full font-bold grad text-white cta"
+                style={{ opacity: posting || !newLieText.trim() ? 0.6 : 1 }}
+              >
+                {posting ? "Posting..." : "Post It!"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

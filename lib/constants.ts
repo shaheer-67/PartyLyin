@@ -16,7 +16,7 @@ export const WALLET_TIERS: WalletTier[] = [
 export const PLACEHOLDER_PARTICIPANTS: Participant[] = [
   { name: "Ava",  colorA: "#ff7a59", colorB: "#ffb020" },
   { name: "Noah", colorA: "#7c5cff", colorB: "#ff4f9a" },
-  { name: "Zara", colorA: "#00c2a8", colorB: "#3b82f6" },
+  { name: "milly", colorA: "#00c2a8", colorB: "#3b82f6" },
   { name: "Leo",  colorA: "#f97316", colorB: "#ef4444" },
   { name: "You",  colorA: "#334155", colorB: "#0f172a" },
 ];

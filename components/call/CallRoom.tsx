@@ -1,12 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Timer, Mic, MicOff, Video, VideoOff, MessageCircle, PhoneOff, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { PLACEHOLDER_PARTICIPANTS, TURN_DURATION_SECONDS } from "@/lib/constants";
 import { ParticipantTile } from "./ParticipantTile";
+import { leaveRoom, subscribeToRoom } from "@/lib/matchmaking";
 
 interface CallRoomProps {
   minutes: number;
+  roomId?: string;
   onReup: () => void;
   onLeave: () => void;
 }
@@ -25,24 +27,53 @@ const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all"
  *
  * TODO (Phase 4): wire chat panel, real participants, real media streams.
  */
-export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
+export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomProps) {
   const [tick, setTick] = useState(0);
   const [bonusSeconds, setBonusSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const [camOn, setCamOn] = useState(true);
   const [toolsVisible, setToolsVisible] = useState(true);
   const [unread] = useState(3);
+  const [participantCount, setParticipantCount] = useState(1);
+  const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
+  const [roomTopic, setRoomTopic] = useState<string>("General Chit-Chat");
+  const leavingRef = useRef(false);
 
+  // ── Local tick timer ───────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => setTick((x) => x + 1), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // ── Subscribe to Firestore room in real-time ─────────────────────────
+  useEffect(() => {
+    if (!roomId) return;
+    const unsub = subscribeToRoom(roomId, (data) => {
+      const parts = (data.participants as string[]) ?? [];
+      setParticipantCount(parts.length);
+      setRoomStatus(data.status as "waiting" | "active" | "ended");
+      if (data.topic) setRoomTopic(data.topic as string);
+    });
+    return () => unsub();
+  }, [roomId]);
+
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - tick);
-  const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % PLACEHOLDER_PARTICIPANTS.length;
+  // Use real participant count when available, else placeholder
+  const displayParticipants = PLACEHOLDER_PARTICIPANTS.slice(0, Math.max(participantCount, 1));
+  const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % displayParticipants.length;
   const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
-  const nextSpeakerIndex = (speakerIndex + 1) % PLACEHOLDER_PARTICIPANTS.length;
+  const nextSpeakerIndex = (speakerIndex + 1) % displayParticipants.length;
+
+  async function handleLeave() {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    const remainingMins = Math.floor(secondsLeft / 60);
+    if (roomId) {
+      try { await leaveRoom(roomId, remainingMins); } catch {}
+    }
+    onLeave();
+  }
 
   function handleReup() {
     setBonusSeconds((b) => b + 15 * 60);
@@ -61,7 +92,9 @@ export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
         </div>
 
         {/* Room info badge */}
-        <span className="text-xs text-white/50 font-medium">Group of 5 · 2 min / turn</span>
+        <span className="text-xs text-white/50 font-medium">
+          {roomStatus === "waiting" ? "⏳ Waiting for others..." : `${participantCount} in room · 2 min / turn`}
+        </span>
 
         {/* ReUp button — also in top bar for quick access */}
         <button
@@ -73,6 +106,14 @@ export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
         </button>
       </div>
 
+      {/* ── Topic Banner ────────────────────────────────────────── */}
+      {roomTopic && (
+        <div className="mx-4 mb-2 px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center gap-2 text-xs font-bold text-purple-200">
+          <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
+          <span>Topic: "{roomTopic}"</span>
+        </div>
+      )}
+
       {/* ══ VIDEO GRID — fills remaining space ══════════════════════ */}
       <div className="relative flex-1 min-h-0 px-3 pb-3">
 
@@ -81,7 +122,7 @@ export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
           className="h-full grid grid-cols-2 gap-2"
           style={{ gridTemplateRows: "repeat(3,1fr)" }}
         >
-          {PLACEHOLDER_PARTICIPANTS.map((participant, i) => (
+          {displayParticipants.map((participant, i) => (
             <ParticipantTile
               key={participant.name}
               participant={participant}
@@ -171,7 +212,7 @@ export default function CallRoom({ minutes, onReup, onLeave }: CallRoomProps) {
             </button>
 
             {/* Leave */}
-            <button className={`${CTL}`} onClick={onLeave} aria-label="Leave call">
+            <button className={`${CTL}`} onClick={handleLeave} aria-label="Leave call">
               <span className={`${ICON_BTN} bg-rose-600`}>
                 <PhoneOff className="w-5 h-5" />
               </span>

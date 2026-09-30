@@ -135,6 +135,26 @@ body {
   /* ── Scrollable (hide scrollbar) ──────────────────────────────────── */
   .scroll { overflow-y: auto; scrollbar-width: none; }
   .scroll::-webkit-scrollbar { display: none; }
+
+  /* ── Auth form input ────────────────────────────────────────────── */
+  .auth-input {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 0.85rem 1.1rem;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.18s ease, background 0.18s ease;
+  }
+  .auth-input::placeholder { color: rgba(255,255,255,0.30); }
+  .auth-input:focus {
+    border-color: rgba(124,58,237,0.70);
+    background: rgba(255,255,255,0.11);
+  }
+  .auth-input option { background: #1a0d2e; color: #fff; }
 }
 
 /* ── CTA green pulse animation ─────────────────────────────────────────── */

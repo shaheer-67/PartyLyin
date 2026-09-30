@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, CheckCircle2 } from "lucide-react";
+import { doc, updateDoc, increment } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { TierCard } from "./TierCard";
 import { WALLET_TIERS } from "@/lib/constants";
 
@@ -13,21 +15,40 @@ interface WalletSheetProps {
 
 /**
  * Bottom-sheet overlay for purchasing call minutes.
- *
- * Shows available tiers, an Auto-ReUp toggle, and a confirm button.
- * TODO (Phase 4): wire onBuy to Stripe / payment gateway + Firestore wallet update.
+ * Writes purchased minutes directly to Firestore user doc.
+ * NOTE: In production, replace handleBuy with a Stripe payment flow
+ *       that calls a Cloud Function to verify payment before writing Firestore.
  */
 export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) {
   const [selectedIndex, setSelectedIndex] = useState(3); // default: best-value tier
   const [autoReup, setAutoReup] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   if (!open) return null;
 
   const selected = WALLET_TIERS[selectedIndex];
 
-  function handleBuy() {
-    onBuy(selected.minutes);
-    onClose();
+  async function handleBuy() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setLoading(true);
+    try {
+      // Write to Firestore — increments walletMinutes atomically
+      await updateDoc(doc(db, "users", uid), {
+        walletMinutes: increment(selected.minutes),
+      });
+      onBuy(selected.minutes);
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 1200);
+    } catch (e) {
+      console.error("Wallet purchase failed:", e);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -43,7 +64,7 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
               Buy <span className="gtxt">Time</span>
             </h2>
             <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
-              Minutes never expire.
+              Minutes never expire — they're saved to your wallet.
             </p>
           </div>
           <button
@@ -73,14 +94,14 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
           <div>
             <p className="font-bold">Auto-ReUp</p>
             <p className="text-xs" style={{ color: "var(--mute)" }}>
-              Add 15 mins when a call is about to end
+              Auto-add 15 mins when your call balance runs low
             </p>
           </div>
           <button
             role="switch"
             aria-checked={autoReup}
             onClick={() => setAutoReup((a) => !a)}
-            className={`w-14 h-8 rounded-full relative shrink-0 ${autoReup ? "grad" : "bg-neutral-400/50"}`}
+            className={`w-14 h-8 rounded-full relative shrink-0 transition-all ${autoReup ? "grad" : "bg-neutral-400/50"}`}
             aria-label="Toggle Auto-ReUp"
           >
             <span
@@ -92,9 +113,17 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
         {/* Confirm button */}
         <button
           onClick={handleBuy}
-          className="cta w-full mt-4 py-4 rounded-full grad text-white text-lg font-extrabold"
+          disabled={loading || success}
+          className="cta w-full mt-4 py-4 rounded-full grad text-white text-lg font-extrabold flex items-center justify-center gap-2"
+          style={{ opacity: loading ? 0.75 : 1 }}
         >
-          Get {selected.minutes} Mins · ${selected.price}.00
+          {success ? (
+            <><CheckCircle2 className="w-5 h-5" /> Added to Wallet!</>
+          ) : loading ? (
+            "Processing..."
+          ) : (
+            `Get ${selected.minutes} Mins · $${selected.price}.00`
+          )}
         </button>
       </div>
     </div>

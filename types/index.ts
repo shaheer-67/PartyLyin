@@ -6,7 +6,8 @@ export type Gender = "Mixed Group" | "All Females" | "All Males" | "All TransMal
 export type AgeGroup = "Any Age" | "18 to 24 Young Adults" | "25 to 30 Adults" | "31 to 50 Grown Folks" | "51 to 65 Seniors" | "66 to 85 Elderly" | "86+";
 export type Location = "Zip Code" | "City" | "County" | "State" | "National";
 export type LieTag = "All" | "Sleep" | "Work" | "Food" | "Social";
-export type AppTab = "home" | "lies" | "me" | "call";
+export type AppTab = "home" | "lies" | "wallet" | "me" | "call";
+export type Race = "Asian" | "Black / African American" | "Hispanic / Latino" | "White / Caucasian" | "Native American" | "Mixed / Multiracial" | "Prefer not to say";
 
 export interface Lie {
   id: string;
@@ -44,6 +45,8 @@ export interface UserProfile {
   age?: number;
   photoURL?: string;
   bio?: string;
+  race?: Race;
+  role?: "admin" | "user";
   walletMinutes: number;
   partiesJoined: number;
   verified: boolean;
