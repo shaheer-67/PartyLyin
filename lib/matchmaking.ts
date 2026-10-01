@@ -41,45 +41,59 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
 
   const capacity = ROOM_CAPACITY[filters.type];
 
-  // 1. Search for a waiting room with matching filters that isn't full
-  const constraints: QueryConstraint[] = [
+  // 1. Search for a waiting room with matching mode and type
+  // To avoid needing complex composite indexes for every filter combination,
+  // we fetch all waiting rooms for this mode/type and filter in memory.
+  const q = query(
+    collection(db, "rooms"),
     where("status", "==", "waiting"),
     where("mode", "==", filters.mode),
     where("type", "==", filters.type),
-    where("gender", "==", filters.gender),
-    where("location", "==", filters.location)
-  ];
+    limit(50)
+  );
+  
+  try {
+    const snap = await getDocs(q);
 
-  // Add specific geo-targeting based on selected scope
-  if (filters.location === "City")     constraints.push(where("city", "==", userCity));
-  if (filters.location === "State")    constraints.push(where("state", "==", userState));
-  if (filters.location === "National") constraints.push(where("country", "==", userCountry));
-  if (filters.location === "Zip Code") constraints.push(where("zipCode", "==", userZipCode));
+    // Find a room that has space and matches our filters
+    for (const roomDoc of snap.docs) {
+      const data = roomDoc.data();
+      const participants: string[] = data.participants ?? [];
 
-  constraints.push(limit(5));
+      // Don't re-join a room you're already in
+      if (participants.includes(uid)) continue;
 
-  const q = query(collection(db, "rooms"), ...constraints);
-  const snap = await getDocs(q);
+      // Check if room has space
+      if (participants.length >= capacity) continue;
 
-  // Find a room that has space
-  for (const roomDoc of snap.docs) {
-    const data = roomDoc.data();
-    const participants: string[] = data.participants ?? [];
+      // Check location match
+      if (filters.location !== "National") {
+        if (filters.location === "City" && data.city !== userCity) continue;
+        if (filters.location === "State" && data.state !== userState) continue;
+        if (filters.location === "Zip Code" && data.zipCode !== userZipCode) continue;
+      } else {
+        // National -> match country
+        if (data.country !== userCountry) continue;
+      }
 
-    // Don't re-join a room you're already in
-    if (participants.includes(uid)) continue;
+      // Check gender match (if not Mixed Group)
+      if (filters.gender !== "Mixed Group" && data.gender !== filters.gender) continue;
+      
+      // Check age group match (if not Any Age)
+      if (filters.ageGroup !== "Any Age" && data.ageGroup !== filters.ageGroup) continue;
 
-    // Room has space
-    if (participants.length < capacity) {
+      // Room matches all criteria!
       await updateDoc(doc(db, "rooms", roomDoc.id), {
         participants: arrayUnion(uid),
         status: participants.length + 1 >= capacity ? "active" : "waiting",
       });
       return roomDoc.id;
     }
+  } catch (err) {
+    console.warn("Matchmaking search error, creating room instead:", err);
   }
 
-  // 2. No suitable room found — create a new one
+  // 2. No suitable room found (or query failed) — create a new one
   const newRoom = await addDoc(collection(db, "rooms"), {
     mode:          filters.mode,
     type:          filters.type,

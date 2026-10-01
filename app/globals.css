@@ -229,4 +229,49 @@ body {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   ZegoCloud UIKit Prebuilt — Style Overrides
+   Make the prebuilt UI blend with our dark PartyLyin design
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Hide Zego's default top bar and bottom toolbar — we have our own */
+[class*="ZegoRoom"] [class*="top_bar"],
+[class*="ZegoRoom"] [class*="bottom_bar"],
+[class*="ZegoRoom"] [class*="toolbar"],
+[class*="ZegoRoom"] [class*="invite"],
+[class*="ZegoRoom"] [class*="leaveButton"],
+[class*="zego"] [class*="top_bar"],
+[class*="zego"] [class*="bottom_bar"] {
+  display: none !important;
+}
+
+/* Make Zego container have dark bg and rounded corners */
+[class*="ZegoRoom"],
+[class*="zego-room"],
+[class*="zegocloud"] {
+  background: #101114 !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+/* Make video tiles have rounded corners */
+[class*="ZegoRoom"] video,
+[class*="zego"] video {
+  border-radius: 12px !important;
+}
+
+/* Style Zego's user name labels */
+[class*="ZegoRoom"] [class*="name"],
+[class*="zego"] [class*="name"] {
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+/* Ensure the Zego container fills the parent */
+[class*="ZegoRoom"],
+[class*="zego-room"] {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }

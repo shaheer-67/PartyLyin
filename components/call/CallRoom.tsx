@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Timer, Mic, MicOff, Video, VideoOff, MessageCircle, PhoneOff, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Timer, Plus, MessageCircle } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { formatTime } from "@/lib/utils";
 import { TURN_DURATION_SECONDS } from "@/lib/constants";
-import { ParticipantTile } from "./ParticipantTile";
 import { leaveRoom, subscribeToRoom } from "@/lib/matchmaking";
 import { auth, db } from "@/lib/firebase";
 import type { Participant } from "@/types";
@@ -20,125 +19,138 @@ interface CallRoomProps {
 const CTL = "flex flex-col items-center gap-1";
 const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all";
 
-/**
- * Full-screen call room.
- *
- * Tools are rendered in TWO places (per client requirement):
- *  1. TOP BAR  — timer + ReUp + room info (always visible)
- *  2. VIDEO OVERLAY TOOLBAR — mute, camera, chat, leave
- *     - Pinned to the BOTTOM of the video grid (above the grid bottom edge)
- *     - User can collapse it with the chevron arrow; it re-expands on hover/tap
- *
- * TODO (Phase 4): wire chat panel, real participants, real media streams.
- */
 export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, onLeave }: CallRoomProps) {
   const localUid = auth.currentUser?.uid || "local-test-uid";
   const [tick, setTick] = useState(0);
   const [bonusSeconds, setBonusSeconds] = useState(0);
-  const [muted, setMuted] = useState(false);
-  const [camOn, setCamOn] = useState(callMode === "Video");
-  const [toolsVisible, setToolsVisible] = useState(true);
   const [realParticipants, setRealParticipants] = useState<Participant[]>([]);
   const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
   const [roomTopic, setRoomTopic] = useState<string>("General Chit-Chat");
+  const [zegoReady, setZegoReady] = useState(false);
   const leavingRef = useRef(false);
 
-  // Zego refs
-  const zgRef = useRef<any>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const localStreamIdRef = useRef<string>("");
+  // Zego UIKit ref
+  const zpRef = useRef<any>(null);
+  const zegoContainerRef = useRef<HTMLDivElement>(null);
+  const initCalledRef = useRef(false);
 
-  // ── Zego Integration ───────────────────────────────────────────────────
+  // Ref to hold handleLeave to avoid stale closures in Zego callbacks
+  const handleLeaveRef = useRef<() => void>();
+
+  // ── ZegoCloud UIKit Prebuilt Integration ─────────────────────────────────
   useEffect(() => {
-    if (!roomId) return;
-    
-    let isMounted = true;
+    if (!roomId || initCalledRef.current) return;
+    initCalledRef.current = true;
 
-    const initZego = async () => {
+    const initZegoUIKit = async () => {
       try {
-        const { ZegoExpressEngine } = await import("zego-express-engine-webrtc");
-        // @ts-ignore
-        const { generateToken04 } = await import("zego-token-generator");
+        // Dynamic import to avoid SSR issues
+        const { ZegoUIKitPrebuilt } = await import("@zegocloud/zego-uikit-prebuilt");
 
         const appID = Number(process.env.NEXT_PUBLIC_ZEGOCLOUD_APP_ID);
         const serverSecret = process.env.NEXT_PUBLIC_ZEGOCLOUD_SERVER_SECRET || "";
-        const server = `wss://webliveroom${appID}-api.zegocloud.com/ws`;
 
-        const zg = new ZegoExpressEngine(appID, server);
-        zgRef.current = zg;
+        if (!appID || !serverSecret) {
+          console.error("ZegoCloud AppID or ServerSecret missing!");
+          return;
+        }
 
-        const userName = auth.currentUser?.displayName || "User";
-
-        // Generate temporary token for dev
-        const token = generateToken04(appID, localUid, serverSecret, 3600, "");
-
-        zg.on("roomStreamUpdate", async (rID: string, updateType: string, streamList: any[]) => {
-          if (updateType === "ADD") {
-            for (const stream of streamList) {
-              const remoteVideo = document.getElementById(`video-${stream.user.userID}`) as HTMLVideoElement;
-              if (remoteVideo) {
-                const mediaStream = await zg.startPlayingStream(stream.streamID);
-                remoteVideo.srcObject = mediaStream;
-              }
-            }
-          } else if (updateType === "DELETE") {
-            for (const stream of streamList) {
-              zg.stopPlayingStream(stream.streamID);
-            }
+        // Get user display name from Firestore
+        let userName = "User";
+        try {
+          const userDoc = await getDoc(doc(db, "users", localUid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            userName = data.username || data.displayName || "User";
+          } else if (auth.currentUser?.displayName) {
+            userName = auth.currentUser.displayName;
           }
-        });
+        } catch (e) {
+          console.warn("Could not fetch user profile for Zego", e);
+          userName = auth.currentUser?.displayName || "User";
+        }
 
-        await zg.loginRoom(roomId, token, { userID: localUid, userName }, { userUpdate: true });
+        // Generate Kit Token for testing (uses serverSecret directly)
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+          appID,
+          serverSecret,
+          roomId,
+          localUid,
+          userName
+        );
 
-        if (!isMounted) return;
+        // Create Zego instance
+        const zp = ZegoUIKitPrebuilt.create(kitToken);
+        zpRef.current = zp;
+
+        // Wait a bit for the container to be in the DOM
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        if (!zegoContainerRef.current) {
+          console.error("Zego container ref not found");
+          return;
+        }
 
         const isVideoCall = callMode === "Video";
-        const localStream = await zg.createStream({
-          camera: { video: isVideoCall, audio: true },
+
+        // Join the room with prebuilt UI
+        zp.joinRoom({
+          container: zegoContainerRef.current,
+          scenario: {
+            mode: isVideoCall
+              ? ZegoUIKitPrebuilt.GroupCall
+              : ZegoUIKitPrebuilt.GroupCall,
+          },
+          turnOnMicrophoneWhenJoining: true,
+          turnOnCameraWhenJoining: isVideoCall,
+          showMyCameraToggleButton: isVideoCall,
+          showMyMicrophoneToggleButton: true,
+          showAudioVideoSettingsButton: true,
+          showScreenSharingButton: false,
+          showTextChat: false,
+          showUserList: false,
+          showLayoutButton: false,
+          showRoomDetailsButton: false,
+          showLeavingView: false,
+          showLeaveRoomConfirmDialog: true,
+          showPreJoinView: false,
+          maxUsers: 10,
+          layout: "Auto",
+          showNonVideoUser: true,
+          showOnlyAudioUser: true,
+          videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_360P,
+          onLeaveRoom: () => {
+            handleLeaveRef.current?.();
+          },
+          onUserJoin: (users: any[]) => {
+            console.log("Users joined:", users.map((u: any) => u.userName));
+          },
+          onUserLeave: (users: any[]) => {
+            console.log("Users left:", users.map((u: any) => u.userName));
+          },
         });
-        localStreamRef.current = localStream;
-        const localStreamId = `${roomId}_${localUid}`;
-        localStreamIdRef.current = localStreamId;
 
-        const localVideo = document.getElementById(`video-${localUid}`) as HTMLVideoElement;
-        if (localVideo) {
-          localVideo.srcObject = localStream;
-        }
-
-        zg.startPublishingStream(localStreamId, localStream);
+        setZegoReady(true);
+        console.log("✅ ZegoCloud UIKit Prebuilt initialized successfully!");
       } catch (e) {
-        console.error("Zego init failed", e);
+        console.error("ZegoCloud UIKit init failed:", e);
       }
     };
 
-    initZego();
+    initZegoUIKit();
 
     return () => {
-      isMounted = false;
-      if (zgRef.current) {
-        if (localStreamIdRef.current) {
-          zgRef.current.stopPublishingStream(localStreamIdRef.current);
+      if (zpRef.current) {
+        try {
+          zpRef.current.destroy();
+        } catch (e) {
+          console.warn("Error destroying Zego instance", e);
         }
-        if (localStreamRef.current) {
-          zgRef.current.destroyStream(localStreamRef.current);
-        }
-        zgRef.current.logoutRoom(roomId);
+        zpRef.current = null;
       }
+      initCalledRef.current = false;
     };
-  }, [roomId, localUid]);
-
-  // Sync mute/cam state to Zego stream
-  useEffect(() => {
-    if (zgRef.current && localStreamRef.current) {
-      zgRef.current.mutePublishStreamAudio(localStreamRef.current, muted);
-    }
-  }, [muted]);
-
-  useEffect(() => {
-    if (zgRef.current && localStreamRef.current) {
-      zgRef.current.mutePublishStreamVideo(localStreamRef.current, !camOn);
-    }
-  }, [camOn]);
+  }, [roomId, localUid, callMode]);
 
   // ── Local tick timer ───────────────────────────────────────────────────
   useEffect(() => {
@@ -147,7 +159,6 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   }, []);
 
   // ── Subscribe to Firestore room in real-time ─────────────────────────
-  // Fetch real user profiles for each participant UID
   const fetchParticipantProfiles = useCallback(async (uids: string[]) => {
     const GRADIENT_COLORS = [
       { colorA: "#ff7a59", colorB: "#ffb020" },
@@ -199,19 +210,28 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - tick);
 
-  // Use real participants fetched from Firestore
   const displayParticipants = realParticipants.length > 0
     ? realParticipants
     : [{ uid: localUid, name: "You", colorA: "#334155", colorB: "#0f172a" }];
 
   const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % displayParticipants.length;
   const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
-  const nextSpeakerIndex = (speakerIndex + 1) % displayParticipants.length;
 
   async function handleLeave() {
     if (leavingRef.current) return;
     leavingRef.current = true;
     const remainingMins = Math.floor(secondsLeft / 60);
+
+    // Destroy Zego first
+    if (zpRef.current) {
+      try {
+        zpRef.current.destroy();
+      } catch (e) {
+        console.warn("Error destroying Zego on leave", e);
+      }
+      zpRef.current = null;
+    }
+
     if (roomId) {
       try { await leaveRoom(roomId, remainingMins); } catch {}
     }
@@ -223,11 +243,13 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
     onReup();
   }
 
+  handleLeaveRef.current = handleLeave;
+
   return (
     <div className="flex flex-col flex-1 min-h-0 relative text-white" style={{ background: "#101114" }}>
 
       {/* ══ TOP BAR — always visible ════════════════════════════════ */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0" style={{ zIndex: 20 }}>
         {/* Session countdown */}
         <div className="rounded-full px-4 py-2 flex items-center gap-2 font-extrabold text-lg bg-white/10 border border-white/10">
           <Timer className="w-5 h-5 text-amber-400" />
@@ -236,10 +258,10 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
 
         {/* Room info badge */}
         <span className="text-xs text-white/50 font-medium">
-          {roomStatus === "waiting" ? "⏳ Waiting for others..." : `${displayParticipants.length} in room · 2 min / turn`}
+          {roomStatus === "waiting" ? "⏳ Waiting for others..." : `${displayParticipants.length} in room`}
         </span>
 
-        {/* ReUp button — also in top bar for quick access */}
+        {/* ReUp button */}
         <button
           onClick={handleReup}
           className="grad rounded-full px-3 py-2 font-extrabold text-xs flex items-center gap-1"
@@ -251,107 +273,39 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
 
       {/* ── Topic Banner ────────────────────────────────────────── */}
       {roomTopic && (
-        <div className="mx-4 mb-2 px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center gap-2 text-xs font-bold text-purple-200">
+        <div className="mx-4 mb-2 px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center gap-2 text-xs font-bold text-purple-200" style={{ zIndex: 20 }}>
           <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
-          <span>Topic: "{roomTopic}"</span>
+          <span>Topic: &quot;{roomTopic}&quot;</span>
         </div>
       )}
 
-      {/* ══ VIDEO GRID — fills remaining space ══════════════════════ */}
+      {/* ══ ZEGO VIDEO CONTAINER — fills remaining space ══════════════════════ */}
       <div className="relative flex-1 min-h-0 px-3 pb-3">
 
-        {/* Participant tiles */}
+        {/* ZegoCloud UIKit Prebuilt renders here */}
         <div
-          className="h-full grid grid-cols-2 gap-2"
-          style={{ gridTemplateRows: "repeat(3,1fr)" }}
-        >
-          {displayParticipants.map((participant, i) => (
-            <ParticipantTile
-              key={participant.uid || i}
-              participant={participant}
-              index={i}
-              isSpeaker={i === speakerIndex}
-              isNext={i === nextSpeakerIndex}
-              turnSecondsLeft={turnSecondsLeft}
-            />
-          ))}
-        </div>
+          ref={zegoContainerRef}
+          className="absolute inset-0 rounded-2xl overflow-hidden"
+          style={{ zIndex: 1 }}
+        />
 
-        {/* ── VIDEO OVERLAY TOOLBAR ─────────────────────────────────
-            Pinned to the bottom of the video grid so it sits ON TOP
-            of the video tiles — fulfilling "tools on the video display screen".
-            Has a toggle chevron to collapse/expand.                         */}
-        <div
-          className="absolute left-3 right-3 bottom-0"
-          style={{ transition: "transform 0.3s ease" }}
-        >
-          {/* Collapse/expand handle */}
-          <div className="flex justify-center mb-1">
-            <button
-              onClick={() => setToolsVisible((v) => !v)}
-              className="w-8 h-5 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-              aria-label={toolsVisible ? "Hide controls" : "Show controls"}
-            >
-              {toolsVisible
-                ? <ChevronDown className="w-3.5 h-3.5" />
-                : <ChevronUp className="w-3.5 h-3.5" />}
-            </button>
+        {/* Loading overlay while Zego initializes */}
+        {!zegoReady && (
+          <div className="absolute inset-0 grid place-items-center rounded-2xl" style={{ background: "rgba(16,17,20,0.9)", zIndex: 5 }}>
+            <div className="flex flex-col items-center gap-4">
+              <div style={{
+                width: "48px", height: "48px", borderRadius: "50%",
+                border: "3px solid rgba(124,58,237,0.3)",
+                borderTop: "3px solid #7c3aed",
+                animation: "spin 0.8s linear infinite",
+              }} />
+              <span className="text-sm text-white/60 font-semibold">
+                {callMode === "Video" ? "Starting video call..." : "Starting voice call..."}
+              </span>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
           </div>
-
-          {/* Toolbar pill — slides down when hidden */}
-          <div
-            className="rounded-2xl px-4 py-3 flex items-end justify-around backdrop-blur-xl border border-white/15"
-            style={{
-              background: "rgba(10,10,14,0.72)",
-              transform: toolsVisible ? "translateY(0)" : "translateY(110%)",
-              transition: "transform 0.3s ease",
-              pointerEvents: toolsVisible ? "auto" : "none",
-            }}
-          >
-            {/* Mute */}
-            <button
-              className={`${CTL}`}
-              onClick={() => setMuted((m) => !m)}
-              aria-label={muted ? "Unmute" : "Mute"}
-            >
-              <span className={`${ICON_BTN} ${muted ? "bg-rose-600" : "bg-white/15"}`}>
-                {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </span>
-              <span className="text-[10px] text-white/60 font-semibold">{muted ? "Unmute" : "Mute"}</span>
-            </button>
-
-            {/* Camera — only show in Video mode */}
-            {callMode === "Video" && (
-            <button
-              className={`${CTL}`}
-              onClick={() => setCamOn((c) => !c)}
-              aria-label={camOn ? "Stop camera" : "Start camera"}
-            >
-              <span className={`${ICON_BTN} ${!camOn ? "bg-rose-600" : "bg-white/15"}`}>
-                {camOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-              </span>
-              <span className="text-[10px] text-white/60 font-semibold">{camOn ? "Camera" : "No Cam"}</span>
-            </button>
-            )}
-
-            {/* ReUp — also in toolbar for thumb reach */}
-            <button className={`${CTL}`} onClick={handleReup} aria-label="Add 15 minutes">
-              <span className={`${ICON_BTN} grad`}>
-                <Plus className="w-5 h-5" />
-              </span>
-              <span className="text-[10px] text-white/60 font-semibold">ReUp</span>
-            </button>
-
-            {/* Leave */}
-            <button className={`${CTL}`} onClick={handleLeave} aria-label="Leave call">
-              <span className={`${ICON_BTN} bg-rose-600`}>
-                <PhoneOff className="w-5 h-5" />
-              </span>
-              <span className="text-[10px] text-white/60 font-semibold">Leave</span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
