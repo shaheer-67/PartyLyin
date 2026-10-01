@@ -172,12 +172,26 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     if (password !== confirm)    { setError("Passwords do not match."); return; }
     setLoading(true);
     try {
+      let geo = { country: "United States", state: "Unknown", city: "Unknown" };
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        if (data.country_name) {
+          geo = { country: data.country_name, state: data.region, city: data.city };
+        }
+      } catch (e) {
+        console.warn("Geo fetch failed", e);
+      }
+
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await setDoc(doc(db, "users", cred.user.uid), {
         uid:          cred.user.uid,
         username:     username.trim(),
         email:        email.trim(),
         zipCode:      zipCode.trim(),
+        country:      geo.country,
+        state:        geo.state,
+        city:         geo.city,
         dob,
         language,
         gender,

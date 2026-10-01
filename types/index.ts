@@ -47,6 +47,10 @@ export interface UserProfile {
   photoURL?: string;
   bio?: string;
   race?: Race;
+  country?: string;
+  state?: string;
+  city?: string;
+  zipCode?: string;
   role?: "admin" | "user";
   walletMinutes: number;
   partiesJoined: number;

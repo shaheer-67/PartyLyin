@@ -1,7 +1,8 @@
 import {
   collection, query, where, orderBy, limit,
-  getDocs, addDoc, updateDoc, doc, onSnapshot,
+  getDocs, addDoc, updateDoc, doc, getDoc, onSnapshot,
   serverTimestamp, arrayUnion, arrayRemove, increment,
+  QueryConstraint
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { RoomType, Gender, AgeGroup, Location } from "@/types";
@@ -30,20 +31,34 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Not authenticated");
 
+  // Fetch current user's geo-location profile
+  const userDoc = await getDoc(doc(db, "users", uid));
+  const userProfile = userDoc.data();
+  const userCountry = userProfile?.country || "United States";
+  const userState   = userProfile?.state   || "Unknown";
+  const userCity    = userProfile?.city    || "Unknown";
+  const userZipCode = userProfile?.zipCode || "Unknown";
+
   const capacity = ROOM_CAPACITY[filters.type];
 
   // 1. Search for a waiting room with matching filters that isn't full
-  const q = query(
-    collection(db, "rooms"),
+  const constraints: QueryConstraint[] = [
     where("status", "==", "waiting"),
     where("mode", "==", filters.mode),
     where("type", "==", filters.type),
     where("gender", "==", filters.gender),
-    where("location", "==", filters.location),
-    orderBy("createdAt", "asc"),
-    limit(5)
-  );
+    where("location", "==", filters.location)
+  ];
 
+  // Add specific geo-targeting based on selected scope
+  if (filters.location === "City")     constraints.push(where("city", "==", userCity));
+  if (filters.location === "State")    constraints.push(where("state", "==", userState));
+  if (filters.location === "National") constraints.push(where("country", "==", userCountry));
+  if (filters.location === "Zip Code") constraints.push(where("zipCode", "==", userZipCode));
+
+  constraints.push(limit(5));
+
+  const q = query(collection(db, "rooms"), ...constraints);
   const snap = await getDocs(q);
 
   // Find a room that has space
@@ -71,6 +86,10 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
     gender:        filters.gender,
     ageGroup:      filters.ageGroup,
     location:      filters.location,
+    country:       userCountry,
+    state:         userState,
+    city:          userCity,
+    zipCode:       userZipCode,
     topic:         filters.topic || "General Chit-Chat",
     capacity,
     participants:  [uid],
