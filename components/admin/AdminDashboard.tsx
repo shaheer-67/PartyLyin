@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Lock,
 } from "lucide-react";
+import logoImg from "@/app/assets/logo.png";
 
 interface AdminUser {
   id: string;
@@ -124,8 +125,9 @@ export default function AdminDashboard() {
               <ShieldAlert className="w-3.5 h-3.5" /> Admin Control
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold mt-1">
-            PartyLyiN <span className="gtxt">Admin Portal</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mt-1 flex items-center gap-3">
+            <img src={logoImg.src} alt="PartyLyiN" style={{ height: "48px", width: "auto" }} />
+            <span className="gtxt">Admin Portal</span>
           </h1>
           <p className="text-xs text-white/60 mt-0.5">
             Real-time Stripe Payment Tracking, Demographics, & User Management

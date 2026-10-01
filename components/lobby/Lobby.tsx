@@ -1,46 +1,13 @@
 "use client";
-import { useState } from "react";
-import { Bell, Video, Mic, Timer, Zap, AlertCircle, X, Heart, Sparkles, PartyPopper, CheckCheck, MessageSquare, Hash } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Video, Mic, Timer, Zap, AlertCircle, Hash } from "lucide-react";
 import { Chips } from "@/components/ui/Chips";
 import { findOrCreateRoom } from "@/lib/matchmaking";
-import { auth } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import type { CallMode, RoomType, Gender, AgeGroup, Location } from "@/types";
 
-interface NotificationItem {
-  id: string;
-  type: "like" | "party" | "wallet" | "system";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "1",
-    type: "party",
-    title: "Party Alert 🎉",
-    message: "A new National Video Party is active right now!",
-    time: "2m ago",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "like",
-    title: "New Lie Like ❤️",
-    message: "Someone liked your lie: 'I only sleep 3 hours a day'",
-    time: "15m ago",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "wallet",
-    title: "Wallet Refill ⏳",
-    message: "Welcome bonus! 1000 party minutes added to your account.",
-    time: "1h ago",
-    read: false,
-  },
-];
 
 interface LobbyProps {
   /** Current wallet balance in minutes */
@@ -61,18 +28,26 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
   const [finding, setFinding] = useState(false);
   const [error, setError] = useState("");
 
-  // Notifications state
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [userProfile, setUserProfile] = useState<{ username?: string; photoURL?: string } | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const unsub = onSnapshot(doc(db, "users", uid), (snap) => {
+      if (snap.exists()) {
+        setUserProfile({
+          username: snap.data().username,
+          photoURL: snap.data().photoURL,
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const uid = auth.currentUser?.uid;
-  const initial = uid ? (uid[0]?.toUpperCase() ?? "?") : "?";
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  const initial = userProfile?.username
+    ? userProfile.username[0].toUpperCase()
+    : uid ? (uid[0]?.toUpperCase() ?? "?") : "?";
 
   async function handleFind() {
     setError("");
@@ -104,8 +79,12 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
       {/* ── Top bar ──────────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-5 pt-5 pb-2">
         {/* Profile avatar */}
-        <button className="w-11 h-11 rounded-full grad text-white font-extrabold" aria-label="Profile">
-          {initial}
+        <button className="w-11 h-11 rounded-full grad text-white font-extrabold flex items-center justify-center overflow-hidden border border-white/20 shadow-sm" aria-label="Profile">
+          {userProfile?.photoURL ? (
+            <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            initial
+          )}
         </button>
 
         {/* Wallet balance */}
@@ -119,20 +98,7 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
           {walletMinutes} mins
         </button>
 
-        {/* Notifications */}
-        <button
-          onClick={() => {
-            setShowNotifications(true);
-            markAllAsRead();
-          }}
-          className="w-11 h-11 rounded-full glass grid place-items-center relative hover:scale-105 transition-transform"
-          aria-label="Notifications"
-        >
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-black animate-pulse" />
-          )}
-        </button>
+
       </header>
 
       {/* ── Main card ────────────────────────────────────────────── */}
@@ -298,70 +264,7 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
         </div>
       </div>
 
-      {/* ── NOTIFICATIONS MODAL ──────────────────────────────────── */}
-      {showNotifications && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-[#12111a] border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-white/10 flex justify-between items-center">
-              <h3 className="font-extrabold text-lg flex items-center gap-2">
-                <Bell className="w-5 h-5 text-purple-400" />
-                Notifications
-              </h3>
-              <button
-                onClick={() => setShowNotifications(false)}
-                className="w-8 h-8 rounded-full glass grid place-items-center"
-              >
-                <X className="w-4 h-4 text-white/70" />
-              </button>
-            </div>
 
-            {/* Notification items list */}
-            <div className="p-4 overflow-y-auto space-y-3 flex-1 scroll">
-              {notifications.length === 0 ? (
-                <div className="text-center py-10 text-white/40">
-                  <p className="font-bold">No notifications yet 🔔</p>
-                </div>
-              ) : (
-                notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className="p-3.5 rounded-2xl glass border border-white/10 flex items-start gap-3 relative"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-purple-500/20 text-purple-300 grid place-items-center shrink-0 mt-0.5">
-                      {n.type === "party" && <PartyPopper className="w-4 h-4 text-purple-400" />}
-                      {n.type === "like" && <Heart className="w-4 h-4 text-rose-400" />}
-                      {n.type === "wallet" && <Timer className="w-4 h-4 text-amber-400" />}
-                      {n.type === "system" && <Sparkles className="w-4 h-4 text-emerald-400" />}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center mb-0.5">
-                        <h4 className="font-bold text-sm text-white">{n.title}</h4>
-                        <span className="text-[10px] text-white/40">{n.time}</span>
-                      </div>
-                      <p className="text-xs text-white/70 leading-relaxed">{n.message}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-3 border-t border-white/10 bg-[#12111a] flex justify-between items-center">
-              <span className="text-xs text-white/40 flex items-center gap-1">
-                <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> All marked as read
-              </span>
-              <button
-                onClick={() => setShowNotifications(false)}
-                className="px-4 py-2 rounded-full glass font-bold text-white text-xs"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

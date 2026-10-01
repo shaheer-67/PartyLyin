@@ -14,6 +14,7 @@ export interface Lie {
   text: string;
   tag: Exclude<LieTag, "All">;
   n: number;
+  likedBy?: string[];
   authorId?: string;
   createdAt?: number;
 }

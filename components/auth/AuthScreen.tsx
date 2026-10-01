@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswor
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Globe, Zap, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import logoImg from "@/app/assets/logo.png";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Screen = "login" | "register" | "forgot";
@@ -42,9 +43,9 @@ export default function AuthScreen() {
             <Globe className="w-6 h-6 text-emerald-400" />
             <span className="text-xs font-bold tracking-widest uppercase text-white/60">The UN declared Loneliness a Global Epidemic</span>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white">
-            Party<span className="gtxt">LyiN</span>
-          </h1>
+          <div className="flex justify-center mb-5">
+            <img src={logoImg.src} alt="PartyLyiN" style={{ height: "96px", width: "auto" }} />
+          </div>
           <p className="text-sm mt-1 text-white/50">Monetized social video &amp; voice calls</p>
         </div>
 
@@ -152,6 +153,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
   const [showPw, setShowPw]     = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
@@ -314,9 +316,15 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
           </Field>
 
           <Field label="Confirm Password">
-            <input type="password" value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Repeat password" className="auth-input" required />
+            <div className="relative">
+              <input type={showConfirmPw ? "text" : "password"} value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Repeat password" className="auth-input pr-12" required />
+              <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80">
+                {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </Field>
 
           {error && <p className="text-sm text-rose-400 font-semibold">{error}</p>}

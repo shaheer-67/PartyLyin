@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Search, PenLine, MapPin, PhoneCall } from "lucide-react";
 import {
   collection, query, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, doc, increment, serverTimestamp,
+  addDoc, updateDoc, doc, increment, serverTimestamp, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Chips } from "@/components/ui/Chips";
@@ -47,7 +47,6 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   const [lies, setLies] = useState<Lie[]>(SEED_LIES); // seed shown while Firestore loads
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<LieTag>("All");
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [openChatIds, setOpenChatIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<LocationScope>("Local");
   const [selectedLieId, setSelectedLieId] = useState<string | null>(null);
@@ -70,6 +69,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         text: d.data().text,
         tag: d.data().tag,
         n: d.data().n ?? 0,
+        likedBy: d.data().likedBy || [],
         authorId: d.data().authorId,
       }));
       setLies(fetched);
@@ -85,17 +85,17 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  async function handleLike(id: string) {
-    setLikedIds((prev) => toggleSet(prev, id));
-    // Optimistically increment/decrement in Firestore
-    const wasLiked = likedIds.has(id);
+  async function handleLike(lie: Lie) {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const wasLiked = lie.likedBy?.includes(uid);
     try {
-      await updateDoc(doc(db, "lies", id), {
+      await updateDoc(doc(db, "lies", lie.id), {
         n: increment(wasLiked ? -1 : 1),
+        likedBy: wasLiked ? arrayRemove(uid) : arrayUnion(uid),
       });
-    } catch {
-      // Revert on error
-      setLikedIds((prev) => toggleSet(prev, id));
+    } catch (e) {
+      console.error("Like error", e);
     }
   }
 
@@ -112,6 +112,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         text: newLieText.trim(),
         tag: newLieTag,
         n: 0,
+        likedBy: [],
         authorId: auth.currentUser?.uid ?? "anonymous",
         createdAt: serverTimestamp(),
       });
@@ -229,9 +230,9 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
           >
             <LieCard
               lie={lie}
-              liked={likedIds.has(lie.id)}
+              liked={lie.likedBy?.includes(auth.currentUser?.uid || "") || false}
               chatOpened={openChatIds.has(lie.id)}
-              onLike={() => handleLike(lie.id)}
+              onLike={() => handleLike(lie)}
               onChat={() => handleChat(lie.id)}
             />
           </div>

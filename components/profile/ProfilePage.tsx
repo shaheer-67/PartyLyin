@@ -18,6 +18,7 @@ import {
   Trash2,
   Plus,
   ShieldAlert,
+  Quote,
 } from "lucide-react";
 
 interface ProfilePageProps {
@@ -46,7 +47,7 @@ function getAge(dob: string): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-export default function ProfilePage({ onSignOut, onOpenAdmin }: ProfilePageProps & { onOpenAdmin?: () => void }) {
+export default function ProfilePage({ onSignOut }: ProfilePageProps) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -300,7 +301,7 @@ export default function ProfilePage({ onSignOut, onOpenAdmin }: ProfilePageProps
         {/* Bio Section */}
         {user?.bio ? (
           <div className="mt-3 px-4 py-2 rounded-2xl glass border border-white/10 max-w-sm text-sm text-white/90 italic flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+            <Quote className="w-4 h-4 text-purple-400 shrink-0" />
             <span>"{user.bio}"</span>
           </div>
         ) : (
@@ -351,7 +352,6 @@ export default function ProfilePage({ onSignOut, onOpenAdmin }: ProfilePageProps
           </button>
         </div>
         {[
-          { label: "Phone", value: user?.phone ?? "—" },
           { label: "Zip Code", value: user?.zipCode ?? "—" },
           { label: "Language", value: user?.language ?? "—" },
           { label: "Gender", value: user?.gender ?? "—" },
@@ -378,19 +378,7 @@ export default function ProfilePage({ onSignOut, onOpenAdmin }: ProfilePageProps
           </span>
         </button>
 
-        {/* Admin Dashboard Trigger */}
-        <button
-          onClick={onOpenAdmin}
-          className="glass w-full rounded-2xl p-4 flex items-center justify-between font-bold text-left border border-purple-500/40 text-purple-300 hover:bg-purple-500/10 transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-purple-400" />
-            Admin Control Center
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-extrabold uppercase">
-            👑 Admin
-          </span>
-        </button>
+        {/* Admin button removed as it has its own route */}
 
         <button
           onClick={onSignOut}

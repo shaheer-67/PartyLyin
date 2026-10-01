@@ -28,7 +28,7 @@ export function LieCard({ lie, liked, chatOpened, onLike, onChat }: LieCardProps
       {/* Footer */}
       <div className="flex items-center justify-between mt-4">
         <span className="text-sm" style={{ color: "var(--mute)" }}>
-          {lie.n + (liked ? 1 : 0)} liars agree
+          {lie.n} liars agree
         </span>
 
         <div className="flex gap-2">
@@ -36,9 +36,9 @@ export function LieCard({ lie, liked, chatOpened, onLike, onChat }: LieCardProps
           <button
             onClick={onLike}
             aria-label={liked ? "Unlike" : "Like"}
-            className={`w-11 h-11 rounded-full glass grid place-items-center ${liked ? "grad !text-white" : ""}`}
+            className={`w-11 h-11 rounded-full glass grid place-items-center ${liked ? "bg-rose-500/20 text-rose-500 !border-rose-500/40" : ""}`}
           >
-            <Heart className="w-5 h-5" />
+            <Heart className="w-5 h-5" fill={liked ? "currentColor" : "none"} />
           </button>
 
           {/* Chat button */}

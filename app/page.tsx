@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Sparkles, Globe, Zap, Timer, Mic, MessageSquareQuote, LogOut, UserPlus, LogIn, Clock, Users, Video, PartyPopper, ArrowLeftRight, ShieldOff, Clock3 } from "lucide-react";
+import Image from "next/image";
+import logoImg from "@/app/assets/logo.png";
 const features = [
   { I: Timer, t: "Pay for minutes, not months", d: "Buy time when you want company. No subscription, and unused minutes stay in your wallet." },
   { I: Mic, t: "Auto-Speaker", d: "Each person gets a glowing two-minute turn. Shy people finally get a real chance to talk." },
@@ -27,8 +29,8 @@ export default function Home() {
         style={{ background: "rgba(13,10,26,0.85)", borderBottom: "1px solid rgba(124,58,237,0.20)" }}
       >
         <div className="wrap flex items-center justify-between py-3.5">
-          <Link href="/" className="text-2xl font-extrabold tracking-tight text-white">
-            Party<span className="gtxt">LyiN</span>
+          <Link href="/" className="flex items-center">
+            <img src={logoImg.src} alt="PartyLyiN" style={{ height: "28px", width: "auto", transform: "scale(2)", transformOrigin: "left center" }} />
           </Link>
           <nav className="hidden md:flex gap-7 font-semibold text-sm" style={{ color: "rgba(255,255,255,0.65)" }}>
             <a href="#how" className="hover:text-white transition-colors">How it works</a>
@@ -255,8 +257,10 @@ export default function Home() {
       <section className="wrap py-20 text-center">
         <Link href="/app" className="btn grad text-white cta text-lg">Get PartyLyiN</Link>
       </section>
-      <footer style={{ borderTop: "1px solid var(--line)" }}><div className="wrap py-8 flex flex-wrap gap-4 justify-between text-sm" style={{ color: "var(--mute)" }}>
-        <span className="font-extrabold text-lg" style={{ color: "var(--ink)" }}>Party<span className="gtxt">LyiN</span></span><span>© 2026 PartyLyiN</span></div></footer>
+      <footer style={{ borderTop: "1px solid var(--line)" }}><div className="wrap py-8 flex flex-wrap gap-4 justify-between text-sm items-center" style={{ color: "var(--mute)" }}>
+        <span className="flex items-center">
+          <img src={logoImg.src} alt="PartyLyiN" style={{ height: "32px", width: "auto", transform: "scale(1.5)", transformOrigin: "left center" }} />
+        </span><span>© 2026 PartyLyiN</span></div></footer>
     </>
   );
 }
