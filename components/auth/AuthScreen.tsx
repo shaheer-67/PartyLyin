@@ -357,8 +357,14 @@ function ForgotForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     try {
       await sendPasswordResetEmail(auth, email.trim());
       setSent(true);
-    } catch {
-      setError("Could not send reset email. Check your email address.");
+    } catch (err: unknown) {
+      console.error("Password reset error:", err);
+      const msg = (err as { message?: string })?.message ?? "";
+      if (msg.includes("user-not-found")) {
+        setError("This email is not registered with us.");
+      } else {
+        setError(msg || "Could not send reset email. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

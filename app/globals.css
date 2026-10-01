@@ -8,16 +8,16 @@
      Green   #16a34a  → CTA actions, live/speaker ring, success
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Light Mode ──────────────────────────────────────────────────────── */
+/* ── Forced Dark Mode ────────────────────────────────────────────────── */
 :root {
-  --bg:      #ffffff;
-  --alt:     #f8f5ff;          /* very faint purple tint for alternate sections */
-  --card:    rgba(255,255,255,0.80);
-  --shell:   #1a0d2e;
+  --bg:    #0d0a1a;          /* very dark purple-black */
+  --alt:   #130e24;          /* slightly lighter for alt sections */
+  --card:  rgba(255,255,255,0.055);
+  --shell: #07050f;
 
-  --ink:     #1a0033;          /* near-black with purple undertone */
-  --mute:    #7c6fa0;          /* muted purple-grey */
-  --line:    rgba(124,58,237,0.14);
+  --ink:   #f0eaff;
+  --mute:  #9d8ec0;
+  --line:  rgba(167,139,250,0.14);
 
   /* Brand palette */
   --purple:  #7c3aed;
@@ -27,20 +27,6 @@
   /* Legacy aliases */
   --amb: #7c3aed;
   --cor: #ec4899;
-}
-
-/* ── Dark Mode ───────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:    #0d0a1a;          /* very dark purple-black */
-    --alt:   #130e24;          /* slightly lighter for alt sections */
-    --card:  rgba(255,255,255,0.055);
-    --shell: #07050f;
-
-    --ink:   #f0eaff;
-    --mute:  #9d8ec0;
-    --line:  rgba(167,139,250,0.14);
-  }
 }
 
 html { scroll-behavior: smooth; }
