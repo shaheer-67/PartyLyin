@@ -17,10 +17,6 @@ const LANGUAGES = [
 const GENDERS = ["Male", "Female", "TransMale", "TransFemale", "NonBinary"] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-/** Convert phone to a fake-email so Firebase Email/Password auth works */
-function phoneToEmail(phone: string) {
-  return `${phone.replace(/\D/g, "")}@partylyin.com`;
-}
 
 // ── AuthScreen ───────────────────────────────────────────────────────────────
 export default function AuthScreen() {
@@ -67,7 +63,7 @@ export default function AuthScreen() {
 // LOGIN FORM
 // ────────────────────────────────────────────────────────────────────────────
 function LoginForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
-  const [phone, setPhone]       = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [error, setError]       = useState("");
@@ -76,14 +72,14 @@ function LoginForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!phone || !password) { setError("Please fill in all fields."); return; }
+    if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, phoneToEmail(phone), password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "";
       if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) {
-        setError("Incorrect phone number or password.");
+        setError("Incorrect email or password.");
       } else {
         setError("Login failed. Please try again.");
       }
@@ -96,11 +92,11 @@ function LoginForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     <form onSubmit={handleLogin} className="flex flex-col gap-5">
       <h2 className="text-2xl font-extrabold text-white">Welcome back 👋</h2>
 
-      <Field label="Phone Number">
+      <Field label="Email Address">
         <input
-          type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-          placeholder="e.g. 2135550100" className="auth-input"
-          autoComplete="tel" required
+          type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          placeholder="e.g. hello@example.com" className="auth-input"
+          autoComplete="email" required
         />
       </Field>
 
@@ -147,7 +143,7 @@ function LoginForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
 function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [username, setUsername] = useState("");
-  const [phone, setPhone]       = useState("");
+  const [email, setEmail]       = useState("");
   const [zipCode, setZipCode]   = useState("");
   const [dob, setDob]           = useState("");
   const [language, setLanguage] = useState("English");
@@ -163,7 +159,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     e.preventDefault();
     setError("");
     if (!username.trim()) { setError("Username is required."); return; }
-    if (!phone.trim())    { setError("Phone number is required."); return; }
+    if (!email.trim())    { setError("Email is required."); return; }
     if (!zipCode.trim())  { setError("Zip code is required."); return; }
     if (!dob)             { setError("Date of birth is required."); return; }
     setStep(2);
@@ -176,11 +172,11 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     if (password !== confirm)    { setError("Passwords do not match."); return; }
     setLoading(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, phoneToEmail(phone), password);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await setDoc(doc(db, "users", cred.user.uid), {
         uid:          cred.user.uid,
         username:     username.trim(),
-        phone:        phone.trim(),
+        email:        email.trim(),
         zipCode:      zipCode.trim(),
         dob,
         language,
@@ -194,7 +190,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? "";
       if (msg.includes("email-already-in-use")) {
-        setError("This phone number is already registered. Try logging in.");
+        setError("This email is already registered. Try logging in.");
       } else {
         setError("Registration failed. Please try again.");
       }
@@ -229,9 +225,9 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
             <input type="text" value={username} onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. coolvibes99" className="auth-input" required />
           </Field>
-          <Field label="Phone Number">
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 2135550100" className="auth-input" required />
+          <Field label="Email Address">
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. hello@example.com" className="auth-input" required />
           </Field>
           <Field label="Zip Code">
             <input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)}
@@ -334,7 +330,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
 // FORGOT PASSWORD FORM
 // ────────────────────────────────────────────────────────────────────────────
 function ForgotForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
-  const [phone, setPhone]   = useState("");
+  const [email, setEmail]   = useState("");
   const [sent, setSent]     = useState(false);
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -342,13 +338,13 @@ function ForgotForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!phone) { setError("Enter your phone number."); return; }
+    if (!email) { setError("Enter your email address."); return; }
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, phoneToEmail(phone));
+      await sendPasswordResetEmail(auth, email.trim());
       setSent(true);
     } catch {
-      setError("Could not send reset email. Check your phone number.");
+      setError("Could not send reset email. Check your email address.");
     } finally {
       setLoading(false);
     }
@@ -367,7 +363,7 @@ function ForgotForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         <div className="text-center py-4">
           <div className="text-5xl mb-3">✅</div>
           <p className="text-white font-bold text-lg">Reset link sent!</p>
-          <p className="text-white/50 text-sm mt-1">Check your registered email.</p>
+          <p className="text-white/50 text-sm mt-1">Check your inbox for the reset link.</p>
           <button onClick={() => onSwitch("login")}
             className="btn grad text-white mt-6 w-full justify-center">
             Back to Login
@@ -375,10 +371,10 @@ function ForgotForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         </div>
       ) : (
         <form onSubmit={handleReset} className="flex flex-col gap-4">
-          <p className="text-white/60 text-sm">Enter your registered phone number and we&apos;ll send a reset link.</p>
-          <Field label="Phone Number">
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 2135550100" className="auth-input" required />
+          <p className="text-white/60 text-sm">Enter your registered email address and we&apos;ll send a reset link.</p>
+          <Field label="Email Address">
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. hello@example.com" className="auth-input" required />
           </Field>
           {error && <p className="text-sm text-rose-400 font-semibold">{error}</p>}
           <button type="submit" disabled={loading}

@@ -19,6 +19,7 @@ export interface Lie {
 }
 
 export interface Participant {
+  uid?: string;
   name: string;
   colorA: string;
   colorB: string;

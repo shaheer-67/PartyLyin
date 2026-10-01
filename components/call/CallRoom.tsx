@@ -5,6 +5,7 @@ import { formatTime } from "@/lib/utils";
 import { PLACEHOLDER_PARTICIPANTS, TURN_DURATION_SECONDS } from "@/lib/constants";
 import { ParticipantTile } from "./ParticipantTile";
 import { leaveRoom, subscribeToRoom } from "@/lib/matchmaking";
+import { auth } from "@/lib/firebase";
 
 interface CallRoomProps {
   minutes: number;
@@ -28,6 +29,7 @@ const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all"
  * TODO (Phase 4): wire chat panel, real participants, real media streams.
  */
 export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomProps) {
+  const localUid = auth.currentUser?.uid || "local-test-uid";
   const [tick, setTick] = useState(0);
   const [bonusSeconds, setBonusSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
@@ -38,6 +40,102 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
   const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
   const [roomTopic, setRoomTopic] = useState<string>("General Chit-Chat");
   const leavingRef = useRef(false);
+
+  // Zego refs
+  const zgRef = useRef<any>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const localStreamIdRef = useRef<string>("");
+
+  // ── Zego Integration ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!roomId) return;
+    
+    let isMounted = true;
+
+    const initZego = async () => {
+      try {
+        const { ZegoExpressEngine } = await import("zego-express-engine-webrtc");
+        // @ts-ignore
+        const { generateToken04 } = await import("zego-token-generator");
+
+        const appID = Number(process.env.NEXT_PUBLIC_ZEGOCLOUD_APP_ID);
+        const serverSecret = process.env.NEXT_PUBLIC_ZEGOCLOUD_SERVER_SECRET || "";
+        const server = `wss://webliveroom${appID}-api.zegocloud.com/ws`;
+
+        const zg = new ZegoExpressEngine(appID, server);
+        zgRef.current = zg;
+
+        const userName = auth.currentUser?.displayName || "User";
+
+        // Generate temporary token for dev
+        const token = generateToken04(appID, localUid, serverSecret, 3600, "");
+
+        zg.on("roomStreamUpdate", async (rID: string, updateType: string, streamList: any[]) => {
+          if (updateType === "ADD") {
+            for (const stream of streamList) {
+              const remoteVideo = document.getElementById(`video-${stream.user.userID}`) as HTMLVideoElement;
+              if (remoteVideo) {
+                const mediaStream = await zg.startPlayingStream(stream.streamID);
+                remoteVideo.srcObject = mediaStream;
+              }
+            }
+          } else if (updateType === "DELETE") {
+            for (const stream of streamList) {
+              zg.stopPlayingStream(stream.streamID);
+            }
+          }
+        });
+
+        await zg.loginRoom(roomId, token, { userID: localUid, userName }, { userUpdate: true });
+
+        if (!isMounted) return;
+
+        const localStream = await zg.createStream({
+          camera: { video: true, audio: true },
+        });
+        localStreamRef.current = localStream;
+        const localStreamId = `${roomId}_${localUid}`;
+        localStreamIdRef.current = localStreamId;
+
+        const localVideo = document.getElementById(`video-${localUid}`) as HTMLVideoElement;
+        if (localVideo) {
+          localVideo.srcObject = localStream;
+        }
+
+        zg.startPublishingStream(localStreamId, localStream);
+      } catch (e) {
+        console.error("Zego init failed", e);
+      }
+    };
+
+    initZego();
+
+    return () => {
+      isMounted = false;
+      if (zgRef.current) {
+        if (localStreamIdRef.current) {
+          zgRef.current.stopPublishingStream(localStreamIdRef.current);
+        }
+        if (localStreamRef.current) {
+          zgRef.current.destroyStream(localStreamRef.current);
+        }
+        zgRef.current.logoutRoom(roomId);
+      }
+    };
+  }, [roomId, localUid]);
+
+  // Sync mute/cam state to Zego stream
+  useEffect(() => {
+    if (zgRef.current && localStreamRef.current) {
+      zgRef.current.mutePublishStreamAudio(localStreamRef.current, muted);
+    }
+  }, [muted]);
+
+  useEffect(() => {
+    if (zgRef.current && localStreamRef.current) {
+      zgRef.current.mutePublishStreamVideo(localStreamRef.current, !camOn);
+    }
+  }, [camOn]);
 
   // ── Local tick timer ───────────────────────────────────────────────────
   useEffect(() => {
@@ -59,8 +157,14 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
 
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - tick);
+  
   // Use real participant count when available, else placeholder
-  const displayParticipants = PLACEHOLDER_PARTICIPANTS.slice(0, Math.max(participantCount, 1));
+  // Map local UID to the "You" placeholder so video tracks mount properly
+  const displayParticipants = PLACEHOLDER_PARTICIPANTS.slice(0, Math.max(participantCount, 1)).map(p => {
+    if (p.name === "You") return { ...p, uid: localUid };
+    return { ...p, uid: `remote-${p.name}` };
+  });
+
   const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % displayParticipants.length;
   const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
   const nextSpeakerIndex = (speakerIndex + 1) % displayParticipants.length;

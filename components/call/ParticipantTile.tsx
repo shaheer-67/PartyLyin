@@ -2,6 +2,7 @@
 import { Mic } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import type { Participant } from "@/types";
+import { auth } from "@/lib/firebase";
 
 interface ParticipantTileProps {
   participant: Participant;
@@ -29,9 +30,18 @@ export function ParticipantTile({
       className={`tile ${index === 4 ? "col-span-2" : ""} ${isSpeaker ? "speak" : ""}`}
       style={{ background: `linear-gradient(160deg,${colorA}66,${colorB}bb 60%,#15161a)` }}
     >
-      {/* Avatar */}
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="w-16 h-16 rounded-full bg-white/20 grid place-items-center text-2xl font-extrabold">
+      {/* Video element for Zego */}
+      <video
+        id={`video-${participant.uid || index}`}
+        className="absolute inset-0 w-full h-full object-cover"
+        autoPlay
+        playsInline
+        muted={participant.uid === auth.currentUser?.uid}
+      />
+
+      {/* Avatar (Fallback if no video) */}
+      <div className="absolute inset-0 grid place-items-center pointer-events-none">
+        <div className="w-16 h-16 rounded-full bg-white/20 grid place-items-center text-2xl font-extrabold backdrop-blur-sm shadow-xl">
           {name[0]}
         </div>
       </div>

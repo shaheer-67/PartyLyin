@@ -118,7 +118,7 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
           style={{ opacity: loading ? 0.75 : 1 }}
         >
           {success ? (
-            <><CheckCircle2 className="w-5 h-5" /> Added to Wallet!</>
+            <><CheckCircle2 className="w-5 h-5" /> Mock Payment Successful! Minutes added.</>
           ) : loading ? (
             "Processing..."
           ) : (
