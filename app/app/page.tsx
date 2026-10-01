@@ -142,9 +142,7 @@ export default function AppPage() {
       )}
       {tab === "me" && (
         <ProfilePage
-          onOpenAdmin={() => {
-            window.location.href = "/admin";
-          }}
+
           onSignOut={async () => {
             const { signOut } = await import("firebase/auth");
             await signOut(auth);
