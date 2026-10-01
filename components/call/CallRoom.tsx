@@ -210,6 +210,14 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - tick);
 
+  // Auto-leave when time is up
+  useEffect(() => {
+    if (tick > 0 && secondsLeft <= 0) {
+      alert("⏳ Time's up! Your minutes have run out. Please buy more to keep partying.");
+      handleLeaveRef.current?.();
+    }
+  }, [secondsLeft, tick]);
+
   const displayParticipants = realParticipants.length > 0
     ? realParticipants
     : [{ uid: localUid, name: "You", colorA: "#334155", colorB: "#0f172a" }];
