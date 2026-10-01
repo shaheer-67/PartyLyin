@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Timer, Mic, MicOff, Video, VideoOff, MessageCircle, PhoneOff, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
 import { formatTime } from "@/lib/utils";
-import { PLACEHOLDER_PARTICIPANTS, TURN_DURATION_SECONDS } from "@/lib/constants";
+import { TURN_DURATION_SECONDS } from "@/lib/constants";
 import { ParticipantTile } from "./ParticipantTile";
 import { leaveRoom, subscribeToRoom } from "@/lib/matchmaking";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import type { Participant } from "@/types";
 
 interface CallRoomProps {
   minutes: number;
@@ -35,8 +37,7 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
   const [muted, setMuted] = useState(false);
   const [camOn, setCamOn] = useState(true);
   const [toolsVisible, setToolsVisible] = useState(true);
-  const [unread] = useState(3);
-  const [participantCount, setParticipantCount] = useState(1);
+  const [realParticipants, setRealParticipants] = useState<Participant[]>([]);
   const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
   const [roomTopic, setRoomTopic] = useState<string>("General Chit-Chat");
   const leavingRef = useRef(false);
@@ -144,26 +145,62 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
   }, []);
 
   // ── Subscribe to Firestore room in real-time ─────────────────────────
+  // Fetch real user profiles for each participant UID
+  const fetchParticipantProfiles = useCallback(async (uids: string[]) => {
+    const GRADIENT_COLORS = [
+      { colorA: "#ff7a59", colorB: "#ffb020" },
+      { colorA: "#7c5cff", colorB: "#ff4f9a" },
+      { colorA: "#00c2a8", colorB: "#3b82f6" },
+      { colorA: "#f97316", colorB: "#ef4444" },
+      { colorA: "#a855f7", colorB: "#ec4899" },
+      { colorA: "#06b6d4", colorB: "#8b5cf6" },
+      { colorA: "#10b981", colorB: "#3b82f6" },
+      { colorA: "#f43f5e", colorB: "#f97316" },
+      { colorA: "#eab308", colorB: "#ef4444" },
+      { colorA: "#334155", colorB: "#0f172a" },
+    ];
+    const profiles: Participant[] = [];
+    for (let i = 0; i < uids.length; i++) {
+      const uid = uids[i];
+      const colors = GRADIENT_COLORS[i % GRADIENT_COLORS.length];
+      try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          profiles.push({
+            uid,
+            name: uid === localUid ? "You" : (data.username || data.displayName || "User"),
+            colorA: colors.colorA,
+            colorB: colors.colorB,
+          });
+        } else {
+          profiles.push({ uid, name: uid === localUid ? "You" : "User", ...colors });
+        }
+      } catch {
+        profiles.push({ uid, name: uid === localUid ? "You" : "User", ...colors });
+      }
+    }
+    setRealParticipants(profiles);
+  }, [localUid]);
+
   useEffect(() => {
     if (!roomId) return;
     const unsub = subscribeToRoom(roomId, (data) => {
       const parts = (data.participants as string[]) ?? [];
-      setParticipantCount(parts.length);
       setRoomStatus(data.status as "waiting" | "active" | "ended");
       if (data.topic) setRoomTopic(data.topic as string);
+      fetchParticipantProfiles(parts);
     });
     return () => unsub();
-  }, [roomId]);
+  }, [roomId, fetchParticipantProfiles]);
 
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - tick);
-  
-  // Use real participant count when available, else placeholder
-  // Map local UID to the "You" placeholder so video tracks mount properly
-  const displayParticipants = PLACEHOLDER_PARTICIPANTS.slice(0, Math.max(participantCount, 1)).map(p => {
-    if (p.name === "You") return { ...p, uid: localUid };
-    return { ...p, uid: `remote-${p.name}` };
-  });
+
+  // Use real participants fetched from Firestore
+  const displayParticipants = realParticipants.length > 0
+    ? realParticipants
+    : [{ uid: localUid, name: "You", colorA: "#334155", colorB: "#0f172a" }];
 
   const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % displayParticipants.length;
   const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
@@ -197,7 +234,7 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
 
         {/* Room info badge */}
         <span className="text-xs text-white/50 font-medium">
-          {roomStatus === "waiting" ? "⏳ Waiting for others..." : `${participantCount} in room · 2 min / turn`}
+          {roomStatus === "waiting" ? "⏳ Waiting for others..." : `${displayParticipants.length} in room · 2 min / turn`}
         </span>
 
         {/* ReUp button — also in top bar for quick access */}
@@ -228,7 +265,7 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
         >
           {displayParticipants.map((participant, i) => (
             <ParticipantTile
-              key={participant.name}
+              key={participant.uid || i}
               participant={participant}
               index={i}
               isSpeaker={i === speakerIndex}
@@ -292,19 +329,6 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
                 {camOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
               </span>
               <span className="text-[10px] text-white/60 font-semibold">{camOn ? "Camera" : "No Cam"}</span>
-            </button>
-
-            {/* Chat */}
-            <button className={`${CTL} relative`} aria-label="Chat">
-              <span className={`${ICON_BTN} bg-white/15`}>
-                <MessageCircle className="w-5 h-5" />
-                {unread > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[10px] font-bold grid place-items-center">
-                    {unread}
-                  </span>
-                )}
-              </span>
-              <span className="text-[10px] text-white/60 font-semibold">Chat</span>
             </button>
 
             {/* ReUp — also in toolbar for thumb reach */}
