@@ -12,6 +12,7 @@ import type { Participant } from "@/types";
 interface CallRoomProps {
   minutes: number;
   roomId?: string;
+  callMode?: "Video" | "Voice";
   onReup: () => void;
   onLeave: () => void;
 }
@@ -30,12 +31,12 @@ const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all"
  *
  * TODO (Phase 4): wire chat panel, real participants, real media streams.
  */
-export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomProps) {
+export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, onLeave }: CallRoomProps) {
   const localUid = auth.currentUser?.uid || "local-test-uid";
   const [tick, setTick] = useState(0);
   const [bonusSeconds, setBonusSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [camOn, setCamOn] = useState(true);
+  const [camOn, setCamOn] = useState(callMode === "Video");
   const [toolsVisible, setToolsVisible] = useState(true);
   const [realParticipants, setRealParticipants] = useState<Participant[]>([]);
   const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
@@ -91,8 +92,9 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
 
         if (!isMounted) return;
 
+        const isVideoCall = callMode === "Video";
         const localStream = await zg.createStream({
-          camera: { video: true, audio: true },
+          camera: { video: isVideoCall, audio: true },
         });
         localStreamRef.current = localStream;
         const localStreamId = `${roomId}_${localUid}`;
@@ -319,7 +321,8 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
               <span className="text-[10px] text-white/60 font-semibold">{muted ? "Unmute" : "Mute"}</span>
             </button>
 
-            {/* Camera */}
+            {/* Camera — only show in Video mode */}
+            {callMode === "Video" && (
             <button
               className={`${CTL}`}
               onClick={() => setCamOn((c) => !c)}
@@ -330,6 +333,7 @@ export default function CallRoom({ minutes, roomId, onReup, onLeave }: CallRoomP
               </span>
               <span className="text-[10px] text-white/60 font-semibold">{camOn ? "Camera" : "No Cam"}</span>
             </button>
+            )}
 
             {/* ReUp — also in toolbar for thumb reach */}
             <button className={`${CTL}`} onClick={handleReup} aria-label="Add 15 minutes">

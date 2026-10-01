@@ -58,10 +58,11 @@ export default function AppPage() {
 
   /** "FIND MY PARTY" pressed in Lobby → go to Lies in discovery mode */
   function handleFindParty(roomId: string, filters: { mode: string; type: string }) {
-    void filters; // filters stored in the room doc
     setCurrentRoomId(roomId);
     setCallMinutes(walletMinutes);
     setFindPartyMode(true);
+    // Store mode so we can pass it to CallRoom
+    (window as any).__partyCallMode = filters.mode;
     setTab("lies");
   }
 
@@ -128,6 +129,7 @@ export default function AppPage() {
         <CallRoom
           minutes={callMinutes}
           roomId={currentRoomId ?? undefined}
+          callMode={((window as any).__partyCallMode as "Video" | "Voice") || "Video"}
           onReup={handleReup}
           onLeave={() => { setCurrentRoomId(null); setTab("home"); }}
         />
