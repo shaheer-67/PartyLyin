@@ -118,7 +118,7 @@ export default function AppPage() {
   }
 
   function handleReup() {
-    setWalletMinutes((m) => m + 15);
+    setWalletSheetOpen(true);
   }
 
   function handleBuy(minutes: number) {

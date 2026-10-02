@@ -258,7 +258,7 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   async function handleLeave() {
     if (leavingRef.current) return;
     leavingRef.current = true;
-    const remainingMins = Math.floor(secondsLeft / 60);
+    const spentMins = Math.ceil(activeTick / 60);
 
     // Destroy Zego first
     if (zpRef.current) {
@@ -271,13 +271,12 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
     }
 
     if (roomId) {
-      try { await leaveRoom(roomId, remainingMins); } catch {}
+      try { await leaveRoom(roomId, spentMins); } catch {}
     }
     onLeave();
   }
 
   function handleReup() {
-    setBonusSeconds((b) => b + 15 * 60);
     onReup();
   }
 
@@ -288,10 +287,10 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
 
       {/* ══ TOP BAR — always visible ════════════════════════════════ */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0" style={{ zIndex: 20 }}>
-        {/* Top bar layout without the confusing massive timer */}
+        {/* Top bar layout showing remaining minutes */}
         <div className="rounded-full px-4 py-2 flex items-center gap-2 font-extrabold text-sm bg-white/10 border border-white/10">
           <Timer className="w-4 h-4 text-amber-400" />
-          {roomStatus === "active" ? formatTime(effectiveActiveSeconds) : "00:00"}
+          {formatTime(secondsLeft)}
         </div>
 
         {/* Room info badge */}
@@ -374,10 +373,10 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
 
       {/* ── Custom Floating Controls ─────────────────────────────────────── */}
       {zegoReady && (
-        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto" style={{ zIndex: 20 }}>
+        <div className="absolute bottom-28 left-4 flex items-center justify-center pointer-events-auto" style={{ zIndex: 20 }}>
           <button 
             onClick={handleLeave} 
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/60 border border-purple-500/40 backdrop-blur-md shadow-xl hover:scale-105 transition-transform"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/60 border border-purple-500/40 backdrop-blur-md shadow-xl hover:scale-105 transition-transform"
           >
             <ArrowLeftRight className="w-4 h-4 text-purple-400" />
             <span className="text-xs font-bold text-white drop-shadow-md">Switch Group</span>

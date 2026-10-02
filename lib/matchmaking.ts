@@ -125,7 +125,7 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
  */
 export async function leaveRoom(
   roomId: string,
-  remainingMinutes: number
+  spentMinutes: number
 ): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
@@ -138,10 +138,10 @@ export async function leaveRoom(
     status: "ended",
   });
 
-  // Save remaining minutes back to wallet
-  if (remainingMinutes > 0) {
+  // Subtract spent minutes from wallet
+  if (spentMinutes > 0) {
     await updateDoc(userRef, {
-      walletMinutes: increment(remainingMinutes),
+      walletMinutes: increment(-spentMinutes),
       partiesJoined: increment(1),
     });
   }
