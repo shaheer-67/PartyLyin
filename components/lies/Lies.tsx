@@ -52,7 +52,8 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   const [selectedLieId, setSelectedLieId] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  const [showScopeSelector, setShowScopeSelector] = useState(true);
   const [newLieText, setNewLieText] = useState("");
   const [newLieTag, setNewLieTag] = useState<Exclude<LieTag, "All">>("Entertainment");
 
@@ -134,50 +135,78 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
 
       {/* ── Find-Party discovery banner ───────────────────────────── */}
       {findPartyMode && (
-        <div
-          className="mx-4 mt-4 rounded-3xl p-4 flex flex-col gap-3"
-          style={{
-            background: "linear-gradient(135deg,#4f1b7c22,#1db95422)",
-            border: "1px solid rgba(155,31,173,0.25)",
-          }}
-        >
-          {/* Title row */}
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" style={{ color: scopeColor }} />
-            <p className="font-extrabold text-sm">
-              Pick a Lie · Start a{" "}
-              <span style={{ color: scopeColor }}>{scope}</span> PartyLyiN
+        showScopeSelector ? (
+          <div
+            className="mx-4 mt-4 rounded-3xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{
+              background: "linear-gradient(135deg,#4f1b7c22,#1db95422)",
+              border: "1px solid rgba(155,31,173,0.25)",
+            }}
+          >
+            {/* Title row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" style={{ color: scopeColor }} />
+                <p className="font-extrabold text-sm">
+                  Pick a Lie · Start a{" "}
+                  <span style={{ color: scopeColor }}>{scope}</span> PartyLyiN
+                </p>
+              </div>
+              <button
+                onClick={() => setShowScopeSelector(false)}
+                className="w-6 h-6 rounded-full glass grid place-items-center hover:bg-white/10"
+              >
+                <X className="w-3 h-3 text-white/70" />
+              </button>
+            </div>
+
+            {/* Location scope chips */}
+            <div className="flex gap-2 overflow-x-auto scroll pb-0.5">
+              {LOCATION_SCOPES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setScope(s);
+                    setShowScopeSelector(false);
+                  }}
+                  className="chip whitespace-nowrap"
+                  aria-pressed={scope === s}
+                  style={
+                    scope === s
+                      ? {
+                          background: SCOPE_COLORS[s],
+                          color: "#fff",
+                          borderColor: "transparent",
+                          boxShadow: `0 4px 14px ${SCOPE_COLORS[s]}55`,
+                          padding: "0.3rem 0.8rem",
+                          fontSize: "0.8rem",
+                        }
+                      : { padding: "0.3rem 0.8rem", fontSize: "0.8rem" }
+                  }
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[10px] leading-tight" style={{ color: "var(--mute)" }}>
+              Select a lie below that sparks your interest — it will start the conversation when you join your PartyLyiN call.
             </p>
           </div>
-
-          {/* Location scope chips */}
-          <div className="flex gap-2 overflow-x-auto scroll pb-0.5">
-            {LOCATION_SCOPES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setScope(s)}
-                className="chip whitespace-nowrap"
-                aria-pressed={scope === s}
-                style={
-                  scope === s
-                    ? {
-                        background: SCOPE_COLORS[s],
-                        color: "#fff",
-                        borderColor: "transparent",
-                        boxShadow: `0 4px 14px ${SCOPE_COLORS[s]}55`,
-                      }
-                    : undefined
-                }
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <p className="text-xs" style={{ color: "var(--mute)" }}>
-            Select a lie below that sparks your interest — it will start the conversation when you join your PartyLyiN call.
-          </p>
-        </div>
+        ) : (
+          <button
+            onClick={() => setShowScopeSelector(true)}
+            className="mx-4 mt-4 px-4 py-3 rounded-2xl glass flex items-center justify-between border border-white/10 hover:border-purple-500/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" style={{ color: scopeColor }} />
+              <p className="font-bold text-xs">
+                PartyLyiN Location: <span style={{ color: scopeColor }}>{scope}</span>
+              </p>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Change</span>
+          </button>
+        )
       )}
 
       {/* ── Header ───────────────────────────────────────────────── */}
@@ -195,10 +224,11 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-10 h-10 rounded-full glass grid place-items-center shrink-0 border border-purple-500/30 shadow-lg hover:scale-105 transition-transform"
+            className="h-10 px-4 rounded-full glass flex items-center gap-2 shrink-0 border border-purple-500/30 shadow-lg hover:scale-105 transition-transform"
             aria-label="Toggle Filters"
           >
-            {showFilters ? <X className="w-5 h-5 text-white/80" /> : <Filter className="w-5 h-5 text-purple-400" />}
+            {showFilters ? <X className="w-4 h-4 text-white/80" /> : <Filter className="w-4 h-4 text-purple-400" />}
+            <span className="text-xs font-bold text-white/80">{showFilters ? "Close" : "Filter"}</span>
           </button>
         </div>
 
@@ -219,7 +249,14 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
 
             {/* Tag filter chips */}
             <div className="mt-3 overflow-y-auto scroll max-h-48 border border-white/5 rounded-2xl p-2 glass">
-              <Chips opts={LIE_TAGS} value={activeTag} onChange={(v) => setActiveTag(v as LieTag)} />
+              <Chips 
+                opts={LIE_TAGS} 
+                value={activeTag} 
+                onChange={(v) => {
+                  setActiveTag(v as LieTag);
+                  setShowFilters(false); // auto-close when selecting a category
+                }} 
+              />
             </div>
           </div>
         )}
