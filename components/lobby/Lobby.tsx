@@ -234,7 +234,7 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
             <div className="relative flex items-center gap-2 mt-3 px-3 py-2 rounded-2xl text-sm font-semibold"
               style={{ background: "rgba(233,30,140,0.15)", border: "1px solid rgba(233,30,140,0.3)", color: "#e91e8c" }}>
               <AlertCircle className="w-4 h-4 shrink-0" />
-              No minutes left — tap to buy time first!
+              Buy Time - First Time or If Now No Minutes.
             </div>
           )}
 
