@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Timer, Plus, MessageCircle } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
+import { Timer, Plus, MessageCircle, ShieldOff, LogOut, ArrowLeftRight } from "lucide-react";
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { formatTime } from "@/lib/utils";
 import { TURN_DURATION_SECONDS } from "@/lib/constants";
 import { leaveRoom, subscribeToRoom } from "@/lib/matchmaking";
@@ -21,8 +21,11 @@ const ICON_BTN = "w-12 h-12 rounded-full grid place-items-center transition-all"
 
 export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, onLeave }: CallRoomProps) {
   const localUid = auth.currentUser?.uid || "local-test-uid";
-  const [tick, setTick] = useState(0);
+  const [activeTick, setActiveTick] = useState(0);
   const [bonusSeconds, setBonusSeconds] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [skipOffset, setSkipOffset] = useState<number>(0);
+  const [now, setNow] = useState<number>(Date.now());
   const [realParticipants, setRealParticipants] = useState<Participant[]>([]);
   const [roomStatus, setRoomStatus] = useState<"waiting" | "active" | "ended">("waiting");
   const [roomTopic, setRoomTopic] = useState<string>("General Chit-Chat");
@@ -152,10 +155,17 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
     };
   }, [roomId, localUid, callMode]);
 
-  // ── Local tick timer ───────────────────────────────────────────────────
+  // ── Local active timer & Global clock ────────────────────────────────
   useEffect(() => {
-    const timer = setInterval(() => setTick((x) => x + 1), 1000);
-    return () => clearInterval(timer);
+    const activeTimer = setInterval(() => {
+      if (roomStatus === "active") setActiveTick((x) => x + 1);
+    }, 1000);
+    return () => clearInterval(activeTimer);
+  }, [roomStatus]);
+
+  useEffect(() => {
+    const globalTimer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(globalTimer);
   }, []);
 
   // ── Subscribe to Firestore room in real-time ─────────────────────────
@@ -202,28 +212,48 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
       const parts = (data.participants as string[]) ?? [];
       setRoomStatus(data.status as "waiting" | "active" | "ended");
       if (data.topic) setRoomTopic(data.topic as string);
+      if (data.startedAt) setStartedAt(data.startedAt as number);
+      if (data.skipOffset !== undefined) setSkipOffset(data.skipOffset as number);
       fetchParticipantProfiles(parts);
     });
     return () => unsub();
   }, [roomId, fetchParticipantProfiles]);
 
   const totalSeconds = minutes * 60 + bonusSeconds;
-  const secondsLeft = Math.max(0, totalSeconds - tick);
+  const secondsLeft = Math.max(0, totalSeconds - activeTick);
 
   // Auto-leave when time is up
   useEffect(() => {
-    if (tick > 0 && secondsLeft <= 0) {
-      alert("⏳ Time's up! Your minutes have run out. Please buy more to keep partying.");
+    if (activeTick > 0 && secondsLeft <= 0) {
+      alert("⏳ Time's up! Your minutes have run out. Please buy more to keep PartyLyiN.");
       handleLeaveRef.current?.();
     }
-  }, [secondsLeft, tick]);
+  }, [secondsLeft, activeTick]);
 
   const displayParticipants = realParticipants.length > 0
     ? realParticipants
     : [{ uid: localUid, name: "You", colorA: "#334155", colorB: "#0f172a" }];
 
-  const speakerIndex = Math.floor(tick / TURN_DURATION_SECONDS) % displayParticipants.length;
-  const turnSecondsLeft = TURN_DURATION_SECONDS - (tick % TURN_DURATION_SECONDS);
+  const effectiveActiveSeconds = startedAt && roomStatus === "active" 
+    ? Math.floor((now - startedAt) / 1000) + skipOffset 
+    : 0;
+  
+  const totalIntroSeconds = displayParticipants.length * TURN_DURATION_SECONDS;
+  const isPhase2 = effectiveActiveSeconds >= totalIntroSeconds;
+
+  const speakerIndex = isPhase2 ? -1 : Math.floor(effectiveActiveSeconds / TURN_DURATION_SECONDS) % displayParticipants.length;
+  const activeSpeaker = isPhase2 ? null : displayParticipants[speakerIndex];
+  const isMyTurn = activeSpeaker?.uid === localUid;
+  
+  const turnSecondsLeft = TURN_DURATION_SECONDS - (effectiveActiveSeconds % TURN_DURATION_SECONDS);
+
+  async function handleDoneTurn() {
+    if (!roomId || !isMyTurn || isPhase2) return;
+    const remaining = turnSecondsLeft;
+    await updateDoc(doc(db, "rooms", roomId), {
+      skipOffset: increment(remaining)
+    });
+  }
 
   async function handleLeave() {
     if (leavingRef.current) return;
@@ -258,10 +288,10 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
 
       {/* ══ TOP BAR — always visible ════════════════════════════════ */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0" style={{ zIndex: 20 }}>
-        {/* Session countdown */}
-        <div className="rounded-full px-4 py-2 flex items-center gap-2 font-extrabold text-lg bg-white/10 border border-white/10">
-          <Timer className="w-5 h-5 text-amber-400" />
-          {formatTime(secondsLeft)}
+        {/* Top bar layout without the confusing massive timer */}
+        <div className="rounded-full px-4 py-2 flex items-center gap-2 font-extrabold text-sm bg-white/10 border border-white/10">
+          <Timer className="w-4 h-4 text-amber-400" />
+          {roomStatus === "active" ? formatTime(effectiveActiveSeconds) : "00:00"}
         </div>
 
         {/* Room info badge */}
@@ -279,13 +309,39 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
         </button>
       </div>
 
-      {/* ── Topic Banner ────────────────────────────────────────── */}
-      {roomTopic && (
-        <div className="mx-4 mb-2 px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center gap-2 text-xs font-bold text-purple-200" style={{ zIndex: 20 }}>
-          <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
-          <span>Topic: &quot;{roomTopic}&quot;</span>
-        </div>
-      )}
+      {/* ── Topic Banner & Turn Info ────────────────────────────────────── */}
+      <div className="flex flex-col gap-2 mx-4 mb-2" style={{ zIndex: 20 }}>
+        {roomTopic && (
+          <div className="px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center gap-2 text-xs font-bold text-purple-200">
+            <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
+            <span>Topic: &quot;{roomTopic}&quot;</span>
+          </div>
+        )}
+        
+        {roomStatus === "active" && !isPhase2 && activeSpeaker && (
+          <div className="px-3.5 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-between text-xs font-bold text-blue-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span>{isMyTurn ? "Your Turn!" : `${activeSpeaker.name}'s Turn`}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono bg-blue-500/30 px-2 py-0.5 rounded text-blue-100">
+                {formatTime(turnSecondsLeft)}
+              </span>
+              {isMyTurn && (
+                <button onClick={handleDoneTurn} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-white transition-colors">
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {roomStatus === "active" && isPhase2 && (
+          <div className="px-3.5 py-1.5 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center gap-2 text-xs font-bold text-green-200">
+            <span>Open Floor - Speak Freely!</span>
+          </div>
+        )}
+      </div>
 
       {/* ══ ZEGO VIDEO CONTAINER — fills remaining space ══════════════════════ */}
       <div className="relative flex-1 min-h-0 px-3 pb-3">
@@ -315,6 +371,32 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
           </div>
         )}
       </div>
+
+      {/* ── Custom Bottom Controls ────────────────────────────────────────── */}
+      {zegoReady && (
+        <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6" style={{ zIndex: 20 }}>
+          <button className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-full grid place-items-center bg-rose-500/20 text-rose-500 border border-rose-500/40 backdrop-blur shadow-lg">
+              <ShieldOff className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-bold text-rose-100 drop-shadow-md">Block Em'</span>
+          </button>
+          
+          <button onClick={handleLeave} className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
+            <div className="w-16 h-16 rounded-full grid place-items-center bg-red-600 text-white border border-red-500 shadow-xl backdrop-blur">
+              <LogOut className="w-6 h-6 ml-1" />
+            </div>
+            <span className="text-[11px] font-bold text-red-100 drop-shadow-md">I'm Out!</span>
+          </button>
+
+          <button onClick={handleLeave} className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-full grid place-items-center bg-purple-500/20 text-purple-400 border border-purple-500/40 backdrop-blur shadow-lg">
+              <ArrowLeftRight className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-bold text-purple-100 drop-shadow-md">Switch Group</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

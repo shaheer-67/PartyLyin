@@ -21,7 +21,7 @@ interface WalletSheetProps {
  */
 export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) {
   const [selectedIndex, setSelectedIndex] = useState(3); // default: best-value tier
-  const [autoReup, setAutoReup] = useState(true);
+  const [autoReup, setAutoReup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -32,20 +32,25 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
   async function handleBuy() {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
+    
     setLoading(true);
     try {
-      // Write to Firestore — increments walletMinutes atomically
-      await updateDoc(doc(db, "users", uid), {
-        walletMinutes: increment(selected.minutes),
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tierIndex: selectedIndex, uid }),
       });
-      onBuy(selected.minutes);
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 1200);
+      
+      const data = await res.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Payment initialization failed: " + (data.error || "Unknown error"));
+      }
     } catch (e) {
-      console.error("Wallet purchase failed:", e);
+      console.error("Wallet purchase redirect failed:", e);
+      alert("Failed to connect to payment provider.");
     } finally {
       setLoading(false);
     }
@@ -110,21 +115,29 @@ export default function WalletSheet({ open, onClose, onBuy }: WalletSheetProps) 
           </button>
         </div>
 
-        {/* Confirm button */}
-        <button
-          onClick={handleBuy}
-          disabled={loading || success}
-          className="cta w-full mt-4 py-4 rounded-full grad text-white text-lg font-extrabold flex items-center justify-center gap-2"
-          style={{ opacity: loading ? 0.75 : 1 }}
-        >
-          {success ? (
-            <><CheckCircle2 className="w-5 h-5" /> Mock Payment Successful! Minutes added.</>
-          ) : loading ? (
-            "Processing..."
-          ) : (
-            `Get ${selected.minutes} Mins · $${selected.price}.00`
-          )}
-        </button>
+        {/* Confirm and Cancel buttons */}
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            onClick={onClose}
+            disabled={loading || success}
+            className="w-1/3 py-4 rounded-full glass text-white text-lg font-extrabold flex items-center justify-center transition-colors hover:bg-white/10"
+            style={{ opacity: loading ? 0.75 : 1 }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBuy}
+            disabled={loading || success}
+            className="cta w-2/3 py-4 rounded-full grad text-white text-lg font-extrabold flex items-center justify-center gap-2"
+            style={{ opacity: loading ? 0.75 : 1 }}
+          >
+            {loading ? (
+              "Redirecting to Stripe..."
+            ) : (
+              `Get ${selected.minutes} Mins · $${selected.price}.00`
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

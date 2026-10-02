@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { Globe, Zap, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Globe, Zap, Eye, EyeOff, ArrowLeft, Camera } from "lucide-react";
 import logoImg from "@/app/assets/logo.png";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -147,15 +147,32 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   const [email, setEmail]       = useState("");
   const [zipCode, setZipCode]   = useState("");
   const [dob, setDob]           = useState("");
-  const [language, setLanguage] = useState("English");
-  const [gender, setGender]     = useState<typeof GENDERS[number]>("Male");
-  const [race, setRace]         = useState("Prefer not to say");
+  const [language, setLanguage] = useState("");
+  const [gender, setGender]     = useState<typeof GENDERS[number] | "">("");
+  const [race, setRace]         = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+  const [photoBase64, setPhotoBase64] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError("Please upload a valid image.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   function nextStep(e: React.FormEvent) {
     e.preventDefault();
@@ -170,8 +187,12 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!photoBase64)           { setError("Profile photo is required."); return; }
+    if (!language)              { setError("Primary spoken language is required."); return; }
+    if (!gender)                { setError("Gender is required."); return; }
+    if (!race)                  { setError("Race / Ethnicity is required."); return; }
     if (password.length < 6)    { setError("Password must be at least 6 characters."); return; }
-    if (password !== confirm)    { setError("Passwords do not match."); return; }
+    if (password !== confirm)   { setError("Passwords do not match."); return; }
     setLoading(true);
     try {
       let geo = { country: "United States", state: "Unknown", city: "Unknown" };
@@ -201,6 +222,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         role:         "user",
         walletMinutes: 1000,
         partiesJoined: 0,
+        photoURL:      photoBase64,
         createdAt:     serverTimestamp(),
       });
     } catch (err: unknown) {
@@ -263,8 +285,21 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         </form>
       ) : (
         <form onSubmit={handleRegister} className="flex flex-col gap-4">
+          <Field label="Profile Photo (For Voice Avatar)">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+                {photoBase64 ? <img src={photoBase64} alt="avatar" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-white/40" />}
+              </div>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-full text-xs font-bold glass">
+                Upload Photo
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
+            </div>
+          </Field>
+
           <Field label="Primary Spoken Language">
             <select value={language} onChange={(e) => setLanguage(e.target.value)} className="auth-input">
+              <option value="" disabled>Select language</option>
               {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </Field>
@@ -287,6 +322,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
 
           <Field label="Race / Ethnicity">
             <select value={race} onChange={(e) => setRace(e.target.value)} className="auth-input">
+              <option value="" disabled>Select race/ethnicity</option>
               {[
                 "Asian",
                 "Black / African American",

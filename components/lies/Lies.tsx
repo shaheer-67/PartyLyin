@@ -53,7 +53,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   const [posting, setPosting] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [newLieText, setNewLieText] = useState("");
-  const [newLieTag, setNewLieTag] = useState<Exclude<LieTag, "All">>("Social");
+  const [newLieTag, setNewLieTag] = useState<Exclude<LieTag, "All">>("Entertainment");
 
   // ── Firestore real-time subscription ─────────────────────────────────────
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             <MapPin className="w-4 h-4" style={{ color: scopeColor }} />
             <p className="font-extrabold text-sm">
               Pick a Lie · Start a{" "}
-              <span style={{ color: scopeColor }}>{scope}</span> Party
+              <span style={{ color: scopeColor }}>{scope}</span> PartyLyiN
             </p>
           </div>
 
@@ -174,7 +174,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
           </div>
 
           <p className="text-xs" style={{ color: "var(--mute)" }}>
-            Select a lie below that sparks your interest — it will start the conversation when you join your party call.
+            Select a lie below that sparks your interest — it will start the conversation when you join your PartyLyiN call.
           </p>
         </div>
       )}
@@ -186,7 +186,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         </h2>
         <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
           {findPartyMode
-            ? "Choose a lie to kick off your party conversation."
+            ? "Choose a lie to kick off your PartyLyiN conversation."
             : "Tell a small lie. Start a real chat."}
         </p>
 
@@ -253,7 +253,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             }}
           >
             <PhoneCall className="w-5 h-5" />
-            {selectedLieId ? `Join ${scope} Party Call` : "Pick a Lie First"}
+            {selectedLieId ? `Join ${scope} PartyLyiN Call` : "Pick a Lie First"}
           </button>
         </div>
       )}
@@ -289,11 +289,11 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             <div>
               <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--mute)" }}>Tag</p>
               <div className="flex flex-wrap gap-2">
-                {(["Sleep", "Work", "Food", "Social"] as const).map((t) => (
+                {LIE_TAGS.filter(t => t !== "All").map((t) => (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setNewLieTag(t)}
+                    onClick={() => setNewLieTag(t as Exclude<LieTag, "All">)}
                     className={`px-3 py-1.5 rounded-full text-sm font-bold border transition-all ${
                       newLieTag === t
                         ? "grad text-white border-transparent"

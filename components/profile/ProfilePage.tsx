@@ -62,12 +62,13 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
   const [editPhotoURL, setEditPhotoURL] = useState("");
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // My Lies state & modal
   const [showMyLies, setShowMyLies] = useState(false);
   const [myLies, setMyLies] = useState<Array<{ id: string; text: string; tag: string; n: number }>>([]);
   const [newLieInput, setNewLieInput] = useState("");
-  const [newLieTag, setNewLieTag] = useState("Social");
+  const [newLieTag, setNewLieTag] = useState("Entertainment");
   const [postingLie, setPostingLie] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -219,6 +220,19 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
       alert("Failed to save profile changes.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, "users", user.uid));
+      await user.delete();
+      if (onSignOut) onSignOut();
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      alert("Failed to delete account. You may need to log in again first.");
     }
   };
 
@@ -385,9 +399,34 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
           className="glass w-full rounded-2xl p-4 flex items-center gap-3 font-bold text-rose-500 text-left"
         >
           <LogOut className="w-5 h-5" />
-          Sign Out
+          Log Out
+        </button>
+
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="glass w-full rounded-2xl p-4 flex items-center gap-3 font-bold text-red-600 text-left hover:border-red-500/50 transition-all mt-3"
+        >
+          <Trash2 className="w-5 h-5" />
+          Delete Account
         </button>
       </div>
+
+      {/* ── DELETE ACCOUNT CONFIRM MODAL ─────────────────────────── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#1a0f14] border border-red-500/30 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 text-red-500 grid place-items-center mx-auto mb-4">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-extrabold text-white mb-2">Delete Account?</h3>
+            <p className="text-sm text-red-200/70 mb-6">Are you sure? This cannot be undone and you will lose all minutes.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-2xl glass font-bold text-white/70 hover:bg-white/5 transition-colors">Cancel</button>
+              <button onClick={handleDeleteAccount} className="flex-1 py-3 rounded-2xl bg-red-600 hover:bg-red-500 font-extrabold text-white shadow-lg shadow-red-600/20 transition-all">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── EDIT PROFILE MODAL ────────────────────────────────────── */}
       {isEditing && (
@@ -609,7 +648,7 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
                 />
                 <div className="flex justify-between items-center pt-1">
                   <div className="flex gap-1.5 overflow-x-auto">
-                    {["Sleep", "Work", "Food", "Social"].map((t) => (
+                    {["Sex", "Religion", "Politics", "Love", "Family", "Sports", "Money", "Relationship", "Entertainment", "Technology", "Porn", "Work", "Food", "Music", "Government", "Education", "Death", "Taxes", "Hate", "War"].map((t) => (
                       <button
                         key={t}
                         type="button"

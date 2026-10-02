@@ -23,7 +23,7 @@ export function LieCard({ lie, liked, chatOpened, onLike, onChat }: LieCardProps
       </p>
 
       {/* Lie text */}
-      <p className="text-2xl font-extrabold leading-tight mt-1">"{lie.text}"</p>
+      <p className="text-3xl md:text-4xl font-extrabold leading-tight mt-1">"{lie.text}"</p>
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-4">

@@ -83,9 +83,11 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
       if (filters.ageGroup !== "Any Age" && data.ageGroup !== filters.ageGroup) continue;
 
       // Room matches all criteria!
+      const isNowActive = participants.length + 1 >= capacity;
       await updateDoc(doc(db, "rooms", roomDoc.id), {
         participants: arrayUnion(uid),
-        status: participants.length + 1 >= capacity ? "active" : "waiting",
+        status: isNowActive ? "active" : "waiting",
+        ...(isNowActive ? { startedAt: Date.now(), skipOffset: 0 } : {})
       });
       return roomDoc.id;
     }

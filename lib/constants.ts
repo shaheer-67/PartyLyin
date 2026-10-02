@@ -25,14 +25,14 @@ export const PLACEHOLDER_PARTICIPANTS: Participant[] = [
 export const TURN_DURATION_SECONDS = 120;
 
 // ─── Lie Tags ─────────────────────────────────────────────────────────────────
-export const LIE_TAGS: LieTag[] = ["All", "Sleep", "Work", "Food", "Social"];
+export const LIE_TAGS: LieTag[] = ["All", "Sex", "Religion", "Politics", "Love", "Family", "Sports", "Money", "Relationship", "Entertainment", "Technology", "Porn", "Work", "Food", "Music", "Government", "Education", "Death", "Taxes", "Hate", "War"];
 
 // ─── Seed Lies (shown before Firestore data loads) ────────────────────────────
 export const SEED_LIES: Lie[] = [
-  { id: "1", text: "I only hit snooze once.",              tag: "Sleep",  n: 128 },
-  { id: "2", text: "I'm leaving in 5 minutes.",            tag: "Social", n: 96  },
-  { id: "3", text: "I read the terms and conditions.",     tag: "Work",   n: 211 },
+  { id: "1", text: "I never watch reality TV.",              tag: "Entertainment",  n: 128 },
+  { id: "2", text: "I'm leaving in 5 minutes.",            tag: "Relationship", n: 96  },
+  { id: "3", text: "I read the terms and conditions.",     tag: "Technology",   n: 211 },
   { id: "4", text: "I never open my phone at dinner.",     tag: "Food",   n: 74  },
   { id: "5", text: "I'll reply to that email right after this.", tag: "Work", n: 157 },
-  { id: "6", text: "I sleep eight hours every night.",    tag: "Sleep",  n: 302 },
+  { id: "6", text: "I don't care about politics.",    tag: "Politics",  n: 302 },
 ];

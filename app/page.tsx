@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sparkles, Globe, Zap, Timer, Mic, MessageSquareQuote, LogOut, UserPlus, LogIn, Clock, Users, Video, PartyPopper, ArrowLeftRight, ShieldOff, Clock3 } from "lucide-react";
 import Image from "next/image";
 import logoImg from "@/app/assets/logo.png";
+import { InstallPWA } from "@/components/InstallPWA";
 const features = [
   { I: Timer, t: "Pay for minutes, not months", d: "Buy time when you want company. No subscription, and unused minutes stay in your wallet." },
   { I: Mic, t: "Auto-Speaker", d: "Each person gets a glowing two-minute turn. Shy people finally get a real chance to talk." },
@@ -12,7 +13,7 @@ const SIX_STEPS = [
   { Icon: Clock, title: "Add Time or Use Time", desc: "Top up your wallet — 15, 30, 45 or 60 minutes. Unused minutes never expire." },
   { Icon: Users, title: "Select Your Group Chat", desc: "Individual One on One, Group of 5, or Group of 10 — you choose the vibe." },
   { Icon: Video, title: "Choose Video or Mic", desc: "Go full video or keep it voice-only — whatever feels right." },
-  { Icon: PartyPopper, title: "Start PartyLyiN", desc: "We match you in seconds. Everyone gets their two-minute turn. Let the party begin!" },
+  { Icon: PartyPopper, title: "Start PartyLyiN", desc: "We match you in seconds. Everyone gets their two-minute turn. Let PartyLyiN begin!" },
 ];
 const SAFETY_FEATURES = [
   { Icon: ArrowLeftRight, label: "Switch Group", color: "#9b1fad" },
@@ -24,6 +25,7 @@ const tiers = [[15, "1.00"], [30, "3.00"], [45, "5.00"], [60, "10.00"]] as const
 export default function Home() {
   return (
     <>
+      <InstallPWA />
       <header
         className="sticky top-0 z-20 backdrop-blur-xl"
         style={{ background: "rgba(13,10,26,0.85)", borderBottom: "1px solid rgba(124,58,237,0.20)" }}
@@ -71,21 +73,27 @@ export default function Home() {
               {/* LEFT — text */}
               <div style={{ minWidth: 0 }}>
 
+                <p style={{ color: "rgba(255,255,255,0.84)", fontWeight: 800, fontSize: "1rem", marginBottom: "0.5rem", letterSpacing: "1px", textTransform: "uppercase" }}>
+                  The United Nations Declared Loneliness A Global Epidemic!
+                </p>
                 {/* Heading — sized to fit nicely beside video */}
                 <h1
                   className="font-extrabold tracking-tight leading-[1]"
                   style={{ fontSize: "clamp(2.4rem, 4.5vw, 3.8rem)", textShadow: "0 4px 24px rgba(0,0,0,0.30)" }}
                 >
-                  Ɪt starts with{" "}
+                  PartyLyiN{" "}
                   <span style={{
                     background: "linear-gradient(90deg,#86efac,#22c55e)",
                     WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
                   }}>
-                    PartyLyiN.
+                    Connects Us All!
                   </span>
                 </h1>
 
                 {/* Description */}
+                <p style={{ color: "rgba(255,255,255,0.84)", lineHeight: 1.65, marginTop: "1.25rem", fontSize: "1rem", maxWidth: "34rem", fontWeight: 500 }}>
+                  According to the UN, Loneliness is a Global Epidemic. We are here to change that.
+                </p>
                 <p style={{ color: "rgba(255,255,255,0.84)", lineHeight: 1.65, marginTop: "1.25rem", fontSize: "1rem", maxWidth: "34rem" }}>
                   PartyLyiN is a monetized social communication platform between individuals and
                   groups using video or phone to connect, be social, be lying and be chatting for fun.
@@ -237,7 +245,7 @@ export default function Home() {
       <section id="safety" style={{ background: "var(--alt)" }}>
         <div className="wrap py-16">
           <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-            Switch Group, I&apos;m Out, Block Em&apos;, ReUp Time
+            Switch Group, I&apos;m Out, Block Em' , ReUp Time
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
             {SAFETY_FEATURES.map(({ Icon, label, color }) => (
@@ -255,12 +263,21 @@ export default function Home() {
         </div>
       </section>
       <section className="wrap py-20 text-center">
-        <Link href="/app" className="btn grad text-white cta text-lg">Get PartyLyiN</Link>
+        <Link href="/app" className="btn grad text-white cta text-lg">Go PartyLyiN</Link>
       </section>
-      <footer style={{ borderTop: "1px solid var(--line)" }}><div className="wrap py-8 flex flex-wrap gap-4 justify-between text-sm items-center" style={{ color: "var(--mute)" }}>
-        <span className="flex items-center">
-          <img src={logoImg.src} alt="PartyLyiN" style={{ height: "32px", width: "auto", transform: "scale(1.5)", transformOrigin: "left center" }} />
-        </span><span>© 2026 PartyLyiN</span></div></footer>
+      <footer style={{ borderTop: "1px solid var(--line)" }}>
+        <div className="wrap py-8 flex flex-col md:flex-row gap-4 justify-between text-sm items-center" style={{ color: "var(--mute)" }}>
+          <span className="flex items-center">
+            <img src={logoImg.src} alt="PartyLyiN" style={{ height: "32px", width: "auto", transform: "scale(1.5)", transformOrigin: "left center" }} />
+          </span>
+          <div className="flex gap-6 font-bold">
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/support" className="hover:text-white transition-colors">Support</Link>
+          </div>
+          <span>© 2026 Cuptoopia.com, Inc.</span>
+        </div>
+      </footer>
     </>
   );
 }

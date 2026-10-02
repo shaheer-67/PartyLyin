@@ -41,6 +41,43 @@ export default function AppPage() {
         if (snap.exists()) {
           setWalletMinutes(snap.data().walletMinutes ?? 0);
         }
+
+        // Check Stripe redirect
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const payment = params.get("payment");
+          const sessionId = params.get("session_id");
+          
+          if (payment === "success" && sessionId) {
+            // Remove the URL parameters so it doesn't trigger again on refresh
+            window.history.replaceState(null, "", "/app");
+            
+            try {
+              const res = await fetch("/api/verify-checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sessionId }),
+              });
+              const data = await res.json();
+              
+              if (data.success && data.uid === user.uid && data.minutes > 0) {
+                // Apply minutes to Firestore
+                const { updateDoc, increment } = await import("firebase/firestore");
+                await updateDoc(doc(db, "users", user.uid), {
+                  walletMinutes: increment(data.minutes)
+                });
+                // Update local state immediately
+                setWalletMinutes((prev) => prev + data.minutes);
+                alert(`Payment successful! Added ${data.minutes} minutes to your wallet.`);
+              }
+            } catch (err) {
+              console.error("Payment verification failed", err);
+            }
+          } else if (payment === "cancelled") {
+            window.history.replaceState(null, "", "/app");
+            alert("Payment was cancelled.");
+          }
+        }
       } else {
         setUid(null);
         setWalletMinutes(0);

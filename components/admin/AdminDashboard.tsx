@@ -400,7 +400,7 @@ export default function AdminDashboard() {
                         {u.username || u.phone || "User"}
                       </td>
                       <td className="py-3 px-3 font-semibold text-amber-400">
-                        {mins} Party Minutes
+                        {mins} PartyLyiN Minutes
                       </td>
                       <td className="py-3 px-3 font-extrabold text-emerald-400">
                         ${amt.toFixed(2)}

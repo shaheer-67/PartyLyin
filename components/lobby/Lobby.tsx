@@ -109,9 +109,9 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
 
           {/* Tagline */}
           <h1 className="relative text-[2.6rem] leading-none font-extrabold tracking-tight mt-1">
-            Nobody
+            Let's Start
             <br />
-            parties <span className="gtxt">alone.</span>
+            <span className="gtxt">PartyLyiN</span>
           </h1>
 
           {/* Mode toggle: Video / Voice */}
@@ -135,8 +135,8 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
             {/* ── Create A PartyLyiN Topic (Pure Hashtag style) ──────── */}
             <div className="p-4 rounded-3xl glass border border-purple-500/40 space-y-3 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <p className="font-extrabold text-sm flex items-center gap-2 text-white">
-                  <Hash className="w-4 h-4 text-purple-400" />
+                <p className="font-extrabold text-lg flex items-center gap-2 text-white">
+                  <Hash className="w-5 h-5 text-purple-400" />
                   Create A PartyLyiN Topic
                 </p>
                 <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-bold border border-purple-500/30 uppercase tracking-wider">
@@ -164,16 +164,7 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
                 <p className="text-[10px] font-bold text-white/40 uppercase">Popular Hashtags:</p>
                 <div className="flex gap-1.5 overflow-x-auto scroll pb-1">
                   {[
-                    "#SpillASecret",
-                    "#HotTakes",
-                    "#WorstDateEver",
-                    "#RelationshipTea",
-                    "#GamingVibes",
-                    "#MovieBuffs",
-                    "#FoodieDebate",
-                    "#MusicVibes",
-                    "#TravelStories",
-                    "#CryptoTalk",
+                    "#Sex", "#Religion", "#Politics", "#Love", "#Family", "#Sports", "#Money", "#Relationship", "#Entertainment", "#Technology", "#Porn", "#Work", "#Food", "#Music", "#Government", "#Education", "#Death", "#Taxes", "#Hate", "#War"
                   ].map((preset) => (
                     <button
                       key={preset}
@@ -194,11 +185,23 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
 
             <div>
               <p className="font-bold mb-2">Who&apos;s in the room?</p>
-              <Chips
-                opts={["1-on-1", "Group of 5", "Group of 10"]}
-                value={type}
-                onChange={(v) => setType(v as RoomType)}
-              />
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { label: "1-on-1", color: "#3b82f6" },
+                  { label: "Group of 5", color: "#a855f7" },
+                  { label: "Group of 10", color: "#f97316" }
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => setType(opt.label as RoomType)}
+                    className="chip whitespace-nowrap"
+                    aria-pressed={type === opt.label}
+                    style={type === opt.label ? { background: opt.color, color: "#fff", borderColor: "transparent", boxShadow: `0 4px 14px ${opt.color}55` } : {}}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <p className="font-bold mb-2 text-sm uppercase tracking-wider" style={{ color: "var(--mute)" }}>Meet</p>
@@ -250,10 +253,10 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
             {finding ? (
               <>
                 <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid #fff", animation: "spin 0.7s linear infinite" }} />
-                Finding Party...
+                Finding PartyLyiN...
               </>
             ) : (
-              <>FIND MY PARTY <Zap className="w-5 h-5" /></>
+              <>FIND MY PartyLyiN <Zap className="w-5 h-5" /></>
             )}
           </button>
 
