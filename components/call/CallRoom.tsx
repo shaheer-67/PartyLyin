@@ -372,28 +372,15 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
         )}
       </div>
 
-      {/* ── Custom Bottom Controls ────────────────────────────────────────── */}
+      {/* ── Custom Floating Controls ─────────────────────────────────────── */}
       {zegoReady && (
-        <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6" style={{ zIndex: 20 }}>
-          <button className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-            <div className="w-12 h-12 rounded-full grid place-items-center bg-rose-500/20 text-rose-500 border border-rose-500/40 backdrop-blur shadow-lg">
-              <ShieldOff className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-bold text-rose-100 drop-shadow-md">Block Em'</span>
-          </button>
-          
-          <button onClick={handleLeave} className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-            <div className="w-16 h-16 rounded-full grid place-items-center bg-red-600 text-white border border-red-500 shadow-xl backdrop-blur">
-              <LogOut className="w-6 h-6 ml-1" />
-            </div>
-            <span className="text-[11px] font-bold text-red-100 drop-shadow-md">I'm Out!</span>
-          </button>
-
-          <button onClick={handleLeave} className="flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-            <div className="w-12 h-12 rounded-full grid place-items-center bg-purple-500/20 text-purple-400 border border-purple-500/40 backdrop-blur shadow-lg">
-              <ArrowLeftRight className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-bold text-purple-100 drop-shadow-md">Switch Group</span>
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto" style={{ zIndex: 20 }}>
+          <button 
+            onClick={handleLeave} 
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/60 border border-purple-500/40 backdrop-blur-md shadow-xl hover:scale-105 transition-transform"
+          >
+            <ArrowLeftRight className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-bold text-white drop-shadow-md">Switch Group</span>
           </button>
         </div>
       )}
