@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, PenLine, MapPin, PhoneCall } from "lucide-react";
+import { Search, PenLine, MapPin, PhoneCall, Filter, X } from "lucide-react";
 import {
   collection, query, orderBy, limit, onSnapshot,
   addDoc, updateDoc, doc, increment, serverTimestamp, arrayUnion, arrayRemove
@@ -52,6 +52,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
   const [selectedLieId, setSelectedLieId] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [newLieText, setNewLieText] = useState("");
   const [newLieTag, setNewLieTag] = useState<Exclude<LieTag, "All">>("Entertainment");
 
@@ -181,31 +182,47 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
 
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="px-5 pt-4">
-        <h2 className="text-4xl font-extrabold tracking-tight leading-none">
-          Conversation <span className="gtxt">Lies</span>
-        </h2>
-        <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
-          {findPartyMode
-            ? "Choose a lie to kick off your PartyLyiN conversation."
-            : "Tell a small lie. Start a real chat."}
-        </p>
-
-        {/* Search */}
-        <label className="glass rounded-full mt-3 px-4 py-2.5 flex items-center gap-2">
-          <Search className="w-4 h-4" style={{ color: "var(--mute)" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search lies"
-            className="bg-transparent flex-1 outline-none text-sm"
-            aria-label="Search lies"
-          />
-        </label>
-
-        {/* Tag filter chips */}
-        <div className="mt-3 overflow-x-auto scroll pb-1">
-          <Chips opts={LIE_TAGS} value={activeTag} onChange={(v) => setActiveTag(v as LieTag)} />
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h2 className="text-4xl font-extrabold tracking-tight leading-none">
+              Conversation <span className="gtxt">Lies</span>
+            </h2>
+            <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
+              {findPartyMode
+                ? "Choose a lie to kick off your PartyLyiN conversation."
+                : "Tell a small lie. Start a real chat."}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-10 h-10 rounded-full glass grid place-items-center shrink-0 border border-purple-500/30 shadow-lg hover:scale-105 transition-transform"
+            aria-label="Toggle Filters"
+          >
+            {showFilters ? <X className="w-5 h-5 text-white/80" /> : <Filter className="w-5 h-5 text-purple-400" />}
+          </button>
         </div>
+
+        {/* Collapsible Search & Filters */}
+        {showFilters && (
+          <div className="animate-in slide-in-from-top-2 fade-in duration-200 mt-4 mb-2 pb-2">
+            {/* Search */}
+            <label className="glass rounded-full px-4 py-2.5 flex items-center gap-2">
+              <Search className="w-4 h-4" style={{ color: "var(--mute)" }} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search lies"
+                className="bg-transparent flex-1 outline-none text-sm"
+                aria-label="Search lies"
+              />
+            </label>
+
+            {/* Tag filter chips */}
+            <div className="mt-3 overflow-y-auto scroll max-h-48 border border-white/5 rounded-2xl p-2 glass">
+              <Chips opts={LIE_TAGS} value={activeTag} onChange={(v) => setActiveTag(v as LieTag)} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Lies list ────────────────────────────────────────────── */}
