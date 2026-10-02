@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswor
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Globe, Zap, Eye, EyeOff, ArrowLeft, Camera } from "lucide-react";
+import { ImageCropper } from "@/components/ui/ImageCropper";
 import logoImg from "@/app/assets/logo.png";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -157,6 +158,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
   const [photoBase64, setPhotoBase64] = useState("");
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,7 +170,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoBase64(reader.result as string);
+        setCropImageSrc(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -380,6 +382,21 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
           Login
         </button>
       </p>
+
+      {/* ── IMAGE CROPPER MODAL ────────────────────────────────────── */}
+      {cropImageSrc && (
+        <ImageCropper
+          imageSrc={cropImageSrc}
+          onCropDone={(base64) => {
+            setPhotoBase64(base64);
+            setCropImageSrc(null);
+          }}
+          onCancel={() => {
+            setCropImageSrc(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+        />
+      )}
     </div>
   );
 }

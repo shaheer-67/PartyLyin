@@ -241,7 +241,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
 
       {/* ── "Join Party Call" sticky CTA (findPartyMode only) ────── */}
       {findPartyMode && (
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-2" style={{ background: "linear-gradient(to top, var(--bg) 70%, transparent)" }}>
+        <div className="absolute bottom-2 left-0 right-0 px-4 pb-6 pt-10" style={{ background: "linear-gradient(to top, var(--bg) 60%, transparent)" }}>
           <button
             onClick={onJoinCall}
             disabled={!selectedLieId}

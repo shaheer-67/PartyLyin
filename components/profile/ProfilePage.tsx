@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { doc, onSnapshot, updateDoc, collection, query, where, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { ImageCropper } from "@/components/ui/ImageCropper";
 import {
   Grid3X3,
   Settings,
@@ -70,6 +71,7 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
   const [newLieInput, setNewLieInput] = useState("");
   const [newLieTag, setNewLieTag] = useState("Entertainment");
   const [postingLie, setPostingLie] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,34 +166,7 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_SIZE = 350;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          }
-        } else {
-          if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        const base64 = canvas.toDataURL("image/jpeg", 0.85);
-        setEditPhotoURL(base64);
-      };
-      img.src = event.target?.result as string;
+      setCropImageSrc(event.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -723,6 +698,20 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
             </div>
           </div>
         </div>
+      )}
+      {/* ── IMAGE CROPPER MODAL ────────────────────────────────────── */}
+      {cropImageSrc && (
+        <ImageCropper
+          imageSrc={cropImageSrc}
+          onCropDone={(base64) => {
+            setEditPhotoURL(base64);
+            setCropImageSrc(null);
+          }}
+          onCancel={() => {
+            setCropImageSrc(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+        />
       )}
     </div>
   );

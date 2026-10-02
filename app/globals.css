@@ -141,6 +141,9 @@ body {
     font-weight: 500;
     outline: none;
     transition: border-color 0.18s ease, background 0.18s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 50px;
   }
   .auth-input::placeholder { color: rgba(255,255,255,0.30); }
   .auth-input:focus {

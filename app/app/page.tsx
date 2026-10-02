@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { Flame, Wallet, MessageSquareQuote, UserRound, ShieldAlert } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import AuthScreen from "@/components/auth/AuthScreen";
@@ -33,14 +33,18 @@ export default function AppPage() {
 
   // ── Listen to Firebase Auth state ──────────────────────────────────────────
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let unsubSnapshot: (() => void) | null = null;
+    
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUid(user.uid);
-        // Load wallet minutes from Firestore
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (snap.exists()) {
-          setWalletMinutes(snap.data().walletMinutes ?? 0);
-        }
+        
+        // Listen to wallet minutes from Firestore in real-time
+        unsubSnapshot = onSnapshot(doc(db, "users", user.uid), (snap) => {
+          if (snap.exists()) {
+            setWalletMinutes(snap.data().walletMinutes ?? 0);
+          }
+        });
 
         // Check Stripe redirect
         if (typeof window !== "undefined") {
@@ -66,8 +70,7 @@ export default function AppPage() {
                 await updateDoc(doc(db, "users", user.uid), {
                   walletMinutes: increment(data.minutes)
                 });
-                // Update local state immediately
-                setWalletMinutes((prev) => prev + data.minutes);
+                // Local state is auto-updated by onSnapshot
                 alert(`Payment successful! Added ${data.minutes} minutes to your wallet.`);
               }
             } catch (err) {
@@ -81,10 +84,15 @@ export default function AppPage() {
       } else {
         setUid(null);
         setWalletMinutes(0);
+        if (unsubSnapshot) unsubSnapshot();
       }
       setAuthReady(true);
     });
-    return () => unsub();
+    
+    return () => {
+      unsubAuth();
+      if (unsubSnapshot) unsubSnapshot();
+    };
   }, []);
 
   // Apply mobile app shell styling to body
