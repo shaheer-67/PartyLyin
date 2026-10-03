@@ -11,7 +11,8 @@ import Lies from "@/components/lies/Lies";
 import WalletSheet from "@/components/wallet/WalletSheet";
 import ProfilePage from "@/components/profile/ProfilePage";
 import AdminDashboard from "@/components/admin/AdminDashboard";
-import type { AppTab } from "@/types";
+import type { AppTab, CallMode } from "@/types";
+import { leaveRoom, quickJoinAnyRoom, findOrCreateRoom, DEFAULT_TOPIC, type MatchFilters } from "@/lib/matchmaking";
 
 // ── Bottom nav config ─────────────────────────────────────────────────────────
 const NAV_ITEMS: Array<{ id: AppTab | "wallet"; label: string; Icon: typeof Flame }> = [
@@ -27,9 +28,21 @@ export default function AppPage() {
   const [walletMinutes, setWalletMinutes] = useState(0);
   const [tab, setTab]                     = useState<AppTab>("home");
   const [walletSheetOpen, setWalletSheetOpen] = useState(false);
-  const [callMinutes, setCallMinutes]     = useState(0);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [findPartyMode, setFindPartyMode] = useState(false);
+  /** Filters (incl. hashtag topic) chosen in the Lobby, while the user is picking a lie */
+  const [pendingFilters, setPendingFilters] = useState<MatchFilters | null>(null);
+  const [callMode, setCallMode]             = useState<CallMode>("Video");
+  const [joining, setJoining]               = useState(false);
+
+  const [toastMessage, setToastMessage]   = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  }
 
   // ── Listen to Firebase Auth state ──────────────────────────────────────────
   useEffect(() => {
@@ -70,15 +83,14 @@ export default function AppPage() {
                 await updateDoc(doc(db, "users", user.uid), {
                   walletMinutes: increment(data.minutes)
                 });
-                // Local state is auto-updated by onSnapshot
-                alert(`Payment successful! Added ${data.minutes} minutes to your wallet.`);
+                showToast(`${data.minutes} mins added to your wallet! 🎉`);
               }
             } catch (err) {
               console.error("Payment verification failed", err);
             }
           } else if (payment === "cancelled") {
             window.history.replaceState(null, "", "/app");
-            alert("Payment was cancelled.");
+            showToast("Payment was cancelled.");
           }
         }
       } else {
@@ -101,33 +113,77 @@ export default function AppPage() {
     return () => document.body.classList.remove("appbody");
   }, []);
 
-  /** "FIND MY PARTY" pressed in Lobby → go to Lies in discovery mode */
-  function handleFindParty(roomId: string, filters: { mode: string; type: string }) {
+  /** Room joined in Lobby but call not started yet → leave it quietly (no minutes charged) */
+  async function abandonPendingRoom() {
+    const rid = currentRoomId;
+    setCurrentRoomId(null);
+    setPendingFilters(null);
+    setFindPartyMode(false);
+    if (rid) {
+      try { await leaveRoom(rid, 0); } catch (e) { console.warn("abandonPendingRoom", e); }
+    }
+  }
+
+  /** "FIND MY PARTY" pressed in Lobby → go to Lies, carrying the chosen topic */
+  function handleFindParty(roomId: string, filters: MatchFilters) {
     setCurrentRoomId(roomId);
-    setCallMinutes(walletMinutes);
+    setPendingFilters(filters);
+    setCallMode(filters.mode);
     setFindPartyMode(true);
-    // Store mode so we can pass it to CallRoom
-    (window as any).__partyCallMode = filters.mode;
     setTab("lies");
   }
 
-  /** "Join Party Call" pressed inside Lies → enter call */
-  async function handleJoinCall(topic?: string) {
-    if (!currentRoomId) {
-      try {
-        const { quickJoinAnyRoom } = await import("@/lib/matchmaking");
-        const matchedRoomId = await quickJoinAnyRoom("Video", topic);
-        setCurrentRoomId(matchedRoomId);
-      } catch (e) {
-        console.error("Quick join error", e);
-        setCurrentRoomId(`room-party-${Date.now()}`);
+  /**
+   * "Join Video Call" pressed inside Lies.
+   *  - Lie selected  → move the user into the room for THAT lie (join existing or create).
+   *  - No lie, came from Lobby → enter the room already found for the Lobby topic.
+   *  - No lie, direct → join ANY available room.
+   */
+  async function handleJoinCall(lieText?: string) {
+    if (joining) return;
+    if (walletMinutes <= 0) {
+      setWalletSheetOpen(true);
+      showToast("Buy minutes to join a PartyLyiN call");
+      return;
+    }
+
+    setJoining(true);
+    try {
+      const mode: CallMode = pendingFilters?.mode ?? "Video";
+      let roomId = currentRoomId;
+
+      if (lieText) {
+        const sameAsPending = !!roomId && pendingFilters?.topic === lieText;
+        if (!sameAsPending) {
+          if (roomId) {
+            try { await leaveRoom(roomId, 0); } catch {}
+            roomId = null;
+          }
+          roomId = pendingFilters
+            ? await findOrCreateRoom({ ...pendingFilters, topic: lieText })
+            : await quickJoinAnyRoom(mode, lieText);
+        }
+      } else if (!roomId) {
+        roomId = await quickJoinAnyRoom(mode);
       }
+
+      setCurrentRoomId(roomId);
+      setCallMode(mode);
+      setFindPartyMode(false);
+      setTab("call");
+    } catch (e) {
+      console.error("Join call error", e);
+      showToast("Could not join a room. Please try again.");
+    } finally {
+      setJoining(false);
     }
-    if (callMinutes <= 0) {
-      setCallMinutes(walletMinutes > 0 ? walletMinutes : 15);
-    }
+  }
+
+  function handleLeaveCall() {
+    setCurrentRoomId(null);
+    setPendingFilters(null);
     setFindPartyMode(false);
-    setTab("call");
+    setTab("home");
   }
 
   function handleReup() {
@@ -135,17 +191,21 @@ export default function AppPage() {
   }
 
   function handleBuy(minutes: number) {
-    setWalletMinutes((m) => m + minutes);
+    showToast(`${minutes} mins added to your wallet! 🎉`);
   }
 
   function handleNavClick(id: AppTab | "wallet") {
     if (id === "wallet") {
       setWalletSheetOpen(true);
-    } else {
-      if (id === "lies") setFindPartyMode(false);
-      setTab(id);
+      return;
     }
+    // Leaving the Lies screen mid-matchmaking → free the room we reserved
+    if (id !== "lies" && findPartyMode && currentRoomId) {
+      abandonPendingRoom();
+    }
+    setTab(id);
   }
+
 
   // ── Loading splash ────────────────────────────────────────────────────────
   if (!authReady) {
@@ -174,7 +234,15 @@ export default function AppPage() {
 
   // ── Logged in → show app ──────────────────────────────────────────────────
   return (
-    <main className="phone">
+    <main className="phone relative">
+      {/* ── Auto-dismissing 2-second Toast Popup ──────────────────── */}
+      {toastMessage && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full glass border border-purple-500/40 bg-purple-950/80 text-white font-extrabold text-xs shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ── Screens ─────────────────────────────────────────────── */}
       {tab === "home" && (
         <Lobby
@@ -185,16 +253,22 @@ export default function AppPage() {
       )}
       {tab === "call" && (
         <CallRoom
-          minutes={callMinutes}
+          minutes={walletMinutes}
           roomId={currentRoomId ?? undefined}
-          callMode={((window as any).__partyCallMode as "Video" | "Voice") || "Video"}
+          callMode={callMode}
           onReup={handleReup}
-          onLeave={() => { setCurrentRoomId(null); setTab("home"); }}
+          onLeave={handleLeaveCall}
         />
       )}
       {tab === "lies" && (
         <Lies
           findPartyMode={findPartyMode}
+          presetTopic={
+            findPartyMode && pendingFilters?.topic && pendingFilters.topic !== DEFAULT_TOPIC
+              ? pendingFilters.topic
+              : undefined
+          }
+          joining={joining}
           onJoinCall={handleJoinCall}
         />
       )}

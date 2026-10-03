@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Video, Mic, Timer, Zap, AlertCircle, Hash } from "lucide-react";
 import { Chips } from "@/components/ui/Chips";
-import { findOrCreateRoom } from "@/lib/matchmaking";
+import { findOrCreateRoom, type MatchFilters } from "@/lib/matchmaking";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import GoogleTranslate from "@/components/GoogleTranslate";
@@ -16,7 +16,7 @@ interface LobbyProps {
   /** Open the wallet purchase sheet */
   onOpenWallet: () => void;
   /** User confirmed filters — passes back the matched roomId */
-  onFind: (roomId: string, filters: { mode: CallMode; type: RoomType }) => void;
+  onFind: (roomId: string, filters: MatchFilters) => void;
 }
 
 export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProps) {
@@ -70,15 +70,16 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
     }
     setFinding(true);
     try {
-      const roomId = await findOrCreateRoom({
+      const filters: MatchFilters = {
         mode,
         type,
         gender: who,
         ageGroup: age,
         location: where,
         topic: topic.trim() || "General Chit-Chat",
-      });
-      onFind(roomId, { mode, type });
+      };
+      const roomId = await findOrCreateRoom(filters);
+      onFind(roomId, filters);
     } catch (e) {
       console.error("Matchmaking error:", e);
       setError("Could not find a room. Please try again.");

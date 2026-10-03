@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { claimWelcomeBonus } from "@/lib/signupBonus";
 import { Globe, Zap, Eye, EyeOff, ArrowLeft, Camera } from "lucide-react";
 import { ImageCropper } from "@/components/ui/ImageCropper";
 import logoImg from "@/app/assets/logo.png";
@@ -209,6 +210,9 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // One-time welcome bonus: 30 mins only if this email has NEVER claimed it before
+      // (the claim record survives account deletion, so re-registering gives 0).
+      const welcomeMinutes = await claimWelcomeBonus(email, cred.user.uid);
       await setDoc(doc(db, "users", cred.user.uid), {
         uid:          cred.user.uid,
         username:     username.trim(),
@@ -222,7 +226,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         gender,
         race,
         role:         "user",
-        walletMinutes: 30, // 🎁 Give 30 free minutes on registration
+        walletMinutes: welcomeMinutes,
         partiesJoined: 0,
         photoURL:      photoBase64,
         createdAt:     serverTimestamp(),

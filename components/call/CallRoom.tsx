@@ -158,10 +158,10 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   // ── Local active timer & Global clock ────────────────────────────────
   useEffect(() => {
     const activeTimer = setInterval(() => {
-      if (roomStatus === "active") setActiveTick((x) => x + 1);
+      setActiveTick((x) => x + 1);
     }, 1000);
     return () => clearInterval(activeTimer);
-  }, [roomStatus]);
+  }, []);
 
   useEffect(() => {
     const globalTimer = setInterval(() => setNow(Date.now()), 1000);
@@ -222,13 +222,14 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   const totalSeconds = minutes * 60 + bonusSeconds;
   const secondsLeft = Math.max(0, totalSeconds - activeTick);
 
-  // Auto-leave when time is up
+  // When time runs out: open "Buy Time" ONCE and show a blocking overlay.
+  // If the user buys minutes, `minutes` grows, secondsLeft > 0 and the overlay disappears.
+  const timeUp = activeTick > 0 && secondsLeft <= 0;
+  const onReupRef = useRef(onReup);
+  onReupRef.current = onReup;
   useEffect(() => {
-    if (activeTick > 0 && secondsLeft <= 0) {
-      alert("⏳ Time's up! Your minutes have run out. Please buy more to keep PartyLyiN.");
-      handleLeaveRef.current?.();
-    }
-  }, [secondsLeft, activeTick]);
+    if (timeUp) onReupRef.current();
+  }, [timeUp]);
 
   const displayParticipants = realParticipants.length > 0
     ? realParticipants
@@ -258,7 +259,7 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
   async function handleLeave() {
     if (leavingRef.current) return;
     leavingRef.current = true;
-    const spentMins = Math.ceil(activeTick / 60);
+    const spentMins = Math.min(Math.ceil(activeTick / 60), Math.max(0, minutes));
 
     // Destroy Zego first
     if (zpRef.current) {
@@ -370,6 +371,31 @@ export default function CallRoom({ minutes, roomId, callMode = "Video", onReup, 
           </div>
         )}
       </div>
+
+      {/* ── Time's up overlay (sits below the wallet sheet so Buy Time stays usable) ── */}
+      {timeUp && (
+        <div
+          className="absolute inset-0 grid place-items-center px-6"
+          style={{ background: "rgba(10,8,20,0.92)", zIndex: 25 }}
+        >
+          <div className="flex flex-col items-center gap-4 text-center max-w-xs">
+            <Timer className="w-12 h-12 text-amber-400" />
+            <h3 className="text-2xl font-extrabold">Time&apos;s up!</h3>
+            <p className="text-sm text-white/60">
+              Your minutes ran out. Buy more time to keep your PartyLyiN going.
+            </p>
+            <button onClick={onReup} className="cta grad w-full py-3.5 rounded-full font-extrabold">
+              Buy Time
+            </button>
+            <button
+              onClick={handleLeave}
+              className="w-full py-3 rounded-full font-bold bg-white/10 border border-white/15"
+            >
+              Leave Call
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Custom Floating Controls ─────────────────────────────────────── */}
       {zegoReady && (

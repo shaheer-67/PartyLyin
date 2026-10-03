@@ -5,6 +5,7 @@ import logoImg from "@/app/assets/logo.png";
 import { InstallPWA } from "@/components/InstallPWA";
 import GoogleTranslate from "@/components/GoogleTranslate";
 import SocialShare from "@/components/SocialShare";
+import HeroVideo from "@/components/HeroVideo";
 
 const features = [
   { I: Timer, t: "Pay for minutes, not months", d: "Buy time when you want company. No subscription, and unused minutes stay in your wallet." },
@@ -118,35 +119,8 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* RIGHT — video placeholder */}
-              <div style={{
-                width: "100%",
-                aspectRatio: "16 / 9",
-                borderRadius: "14px",
-                background: "rgba(0,0,0,0.45)",
-                border: "1px solid rgba(255,255,255,0.22)",
-                backdropFilter: "blur(24px)",
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: "0.85rem",
-                boxShadow: "0 24px 60px rgba(0,0,0,0.60), inset 0 0 0 1px rgba(255,255,255,0.10)",
-              }}>
-                {/* Play button */}
-                <div style={{
-                  width: "64px", height: "64px", borderRadius: "50%",
-                  background: "linear-gradient(135deg,#16a34a,#86efac)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 8px 28px rgba(22,163,74,0.55)", cursor: "pointer",
-                  transition: "transform 0.2s",
-                }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff">
-                    <polygon points="5,3 19,12 5,21" />
-                  </svg>
-                </div>
-                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.85rem", fontWeight: 600, letterSpacing: "0.02em" }}>
-                  Watch how PartyLyiN works
-                </p>
-              </div>
+              {/* RIGHT — hero video (same 16:9 box, video stays inside) */}
+              <HeroVideo />
 
             </div>
           </div>

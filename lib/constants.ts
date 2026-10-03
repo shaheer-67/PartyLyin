@@ -12,6 +12,9 @@ export const WALLET_TIERS: WalletTier[] = [
   { minutes: 60, price: 10 },
 ];
 
+// ─── One-time welcome bonus (credited only on a brand-new email's first registration) ───
+export const WELCOME_BONUS_MINUTES = 30;
+
 // ─── Call Room Participants (placeholder until real users) ─────────────────────
 export const PLACEHOLDER_PARTICIPANTS: Participant[] = [
   { name: "Ava",  colorA: "#ff7a59", colorB: "#ffb020" },

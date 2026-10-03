@@ -16,6 +16,8 @@ export interface MatchFilters {
   topic?: string;
 }
 
+export const DEFAULT_TOPIC = "General Chit-Chat";
+
 /** Max participants per room type */
 const ROOM_CAPACITY: Record<RoomType, number> = {
   "1-on-1":     2,
@@ -40,6 +42,8 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
   const userZipCode = userProfile?.zipCode || "Unknown";
 
   const capacity = ROOM_CAPACITY[filters.type];
+  const wantedTopic = (filters.topic ?? "").trim().toLowerCase();
+  const wantsTopic = !!wantedTopic && wantedTopic !== DEFAULT_TOPIC.toLowerCase();
 
   // 1. Search for a waiting room with matching mode and type
   // To avoid needing complex composite indexes for every filter combination,
@@ -82,6 +86,10 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
       // Check age group match (if not Any Age)
       if (filters.ageGroup !== "Any Age" && data.ageGroup !== filters.ageGroup) continue;
 
+      // Topic match: if the user chose a specific topic, only join rooms with that topic.
+      // If no topic was chosen (General), any available room is fine.
+      if (wantsTopic && String(data.topic ?? "").toLowerCase() !== wantedTopic) continue;
+
       // Room matches all criteria!
       const isNowActive = participants.length + 1 >= capacity;
       await updateDoc(doc(db, "rooms", roomDoc.id), {
@@ -118,54 +126,68 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
   return newRoom.id;
 }
 
+/** Try to join a waiting room doc. Returns true when joined (or already in it). */
+async function tryJoinRoomDoc(
+  roomDoc: { id: string; data: () => Record<string, any> },
+  uid: string
+): Promise<boolean> {
+  const data = roomDoc.data();
+  const participants: string[] = data.participants ?? [];
+  const capacity = data.capacity ?? 5;
+
+  if (participants.includes(uid)) return true;
+  if (participants.length >= capacity) return false;
+
+  const isNowActive = participants.length + 1 >= capacity;
+  await updateDoc(doc(db, "rooms", roomDoc.id), {
+    participants: arrayUnion(uid),
+    status: isNowActive ? "active" : "waiting",
+    ...(isNowActive ? { startedAt: Date.now(), skipOffset: 0 } : {})
+  });
+  return true;
+}
+
 /**
- * Quickly join ANY available waiting room in Firestore,
- * or create a new public room if none is available.
+ * Quick join:
+ *  - NO topic  → join ANY available waiting room (same mode), else create a general room.
+ *  - WITH topic → join a waiting room with EXACTLY that topic, else create a new room
+ *    for that topic (so the user never lands in an unrelated room).
  */
 export async function quickJoinAnyRoom(mode: "Video" | "Voice" = "Video", selectedTopic?: string): Promise<string> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Not authenticated");
 
-  // 1. Search for ANY waiting room with open capacity
-  const q = query(
-    collection(db, "rooms"),
-    where("status", "==", "waiting"),
-    limit(20)
-  );
+  const topic = selectedTopic?.trim();
+  const hasTopic = !!topic && topic !== DEFAULT_TOPIC;
 
   try {
+    const q = hasTopic
+      ? query(
+          collection(db, "rooms"),
+          where("status", "==", "waiting"),
+          where("topic", "==", topic),
+          limit(20)
+        )
+      : query(collection(db, "rooms"), where("status", "==", "waiting"), limit(30));
+
     const snap = await getDocs(q);
     for (const roomDoc of snap.docs) {
       const data = roomDoc.data();
-      const participants: string[] = data.participants ?? [];
-      const capacity = data.capacity ?? 5;
-
-      // Don't re-join a room you're already in
-      if (participants.includes(uid)) return roomDoc.id;
-
-      // If room has space, join it!
-      if (participants.length < capacity) {
-        const isNowActive = participants.length + 1 >= capacity;
-        await updateDoc(doc(db, "rooms", roomDoc.id), {
-          participants: arrayUnion(uid),
-          status: isNowActive ? "active" : "waiting",
-          ...(isNowActive ? { startedAt: Date.now(), skipOffset: 0 } : {})
-        });
-        return roomDoc.id;
-      }
+      if (data.mode && data.mode !== mode) continue;
+      if (await tryJoinRoomDoc(roomDoc, uid)) return roomDoc.id;
     }
   } catch (err) {
     console.warn("Quick join search error, creating room instead:", err);
   }
 
-  // 2. If no room with space exists, create a new open room
+  // No suitable room found — create a new open room (carrying the chosen topic)
   const newRoom = await addDoc(collection(db, "rooms"), {
     mode,
     type: "Group of 5",
     gender: "Mixed Group",
     ageGroup: "Any Age",
     location: "National",
-    topic: selectedTopic || "General Chit-Chat",
+    topic: hasTopic ? topic : DEFAULT_TOPIC,
     capacity: 5,
     participants: [uid],
     status: "waiting",
@@ -179,8 +201,9 @@ export async function quickJoinAnyRoom(mode: "Video" | "Voice" = "Video", select
 
 /**
  * Leave a room — removes uid from participants.
- * If room becomes empty, marks it as ended.
- * Returns remaining minutes to save.
+ * The room is only ended when it becomes empty; otherwise it stays open
+ * for the remaining participants (and new joiners).
+ * Subtracts `spentMinutes` from the wallet.
  */
 export async function leaveRoom(
   roomId: string,
@@ -192,10 +215,16 @@ export async function leaveRoom(
   const roomRef = doc(db, "rooms", roomId);
   const userRef = doc(db, "users", uid);
 
-  await updateDoc(roomRef, {
-    participants: arrayRemove(uid),
-    status: "ended",
-  });
+  try {
+    const snap = await getDoc(roomRef);
+    const remaining = ((snap.data()?.participants as string[]) ?? []).filter((p) => p !== uid);
+    await updateDoc(roomRef, {
+      participants: arrayRemove(uid),
+      status: remaining.length === 0 ? "ended" : "waiting",
+    });
+  } catch (e) {
+    console.warn("leaveRoom: could not update room", e);
+  }
 
   // Subtract spent minutes from wallet
   if (spentMinutes > 0) {

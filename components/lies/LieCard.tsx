@@ -34,7 +34,7 @@ export function LieCard({ lie, liked, chatOpened, onLike, onChat }: LieCardProps
         <div className="flex gap-2">
           {/* Like button */}
           <button
-            onClick={onLike}
+            onClick={(e) => { e.stopPropagation(); onLike(); }}
             aria-label={liked ? "Unlike" : "Like"}
             className={`w-11 h-11 rounded-full glass grid place-items-center ${liked ? "bg-rose-500/20 text-rose-500 !border-rose-500/40" : ""}`}
           >
@@ -43,11 +43,11 @@ export function LieCard({ lie, liked, chatOpened, onLike, onChat }: LieCardProps
 
           {/* Chat button */}
           <button
-            onClick={onChat}
+            onClick={(e) => { e.stopPropagation(); onChat(); }}
             className="h-11 px-4 rounded-full grad text-white font-bold text-sm flex items-center gap-1.5"
           >
             <MessageCircle className="w-4 h-4" />
-            {chatOpened ? "Chat opened ✓" : "Start chat"}
+            {chatOpened ? "Selected ✓" : "Start chat"}
           </button>
         </div>
       </div>

@@ -38,6 +38,8 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests and chrome extensions
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
+  // Let the browser stream large media directly (no caching, keeps range requests working)
+  if (event.request.headers.has('range') || /\.(mp4|webm|mov)(\?|#|$)/i.test(event.request.url)) return;
 
   event.respondWith(
     fetch(event.request)

@@ -28,8 +28,12 @@ interface LiesProps {
    * Shows a discovery banner and a "Join Party Call" CTA.
    */
   findPartyMode?: boolean;
-  /** Called when user taps "Join Party Call" */
+  /** Called when user taps "Join Party Call" (with the selected lie text, if any) */
   onJoinCall?: (topic?: string) => void;
+  /** Hashtag topic created in the Lobby (e.g. "#Sex"), shown while picking a lie */
+  presetTopic?: string;
+  /** True while the room is being found/joined */
+  joining?: boolean;
 }
 
 /**
@@ -42,11 +46,16 @@ interface LiesProps {
  * TODO (Phase 4): replace SEED_LIES with real-time Firestore subscription per scope.
  * TODO (Phase 4): replace prompt() post flow with PostLieModal component.
  */
-export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
+export default function Lies({ findPartyMode = false, onJoinCall, presetTopic, joining = false }: LiesProps) {
   // ── State ─────────────────────────────────────────────────────────────────
   const [lies, setLies] = useState<Lie[]>(SEED_LIES); // seed shown while Firestore loads
   const [search, setSearch] = useState("");
-  const [activeTag, setActiveTag] = useState<LieTag>("All");
+  // If the user created a hashtag topic in the Lobby (e.g. #Sex), start on that category
+  const [activeTag, setActiveTag] = useState<LieTag>(() => {
+    const t = (presetTopic ?? "").replace(/^#/, "").toLowerCase();
+    const match = LIE_TAGS.find((x) => x !== "All" && x.toLowerCase() === t);
+    return match ?? "All";
+  });
   const [openChatIds, setOpenChatIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<LocationScope>("Local");
   const [selectedLieId, setSelectedLieId] = useState<string | null>(null);
@@ -231,7 +240,9 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             </h2>
             <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
               {findPartyMode
-                ? "Choose a lie to kick off your PartyLyiN conversation."
+                ? presetTopic
+                  ? `Your topic ${presetTopic} is ready. Pick a lie to switch, or just join.`
+                  : "Choose a lie to kick off your PartyLyiN conversation."
                 : "Tell a small lie. Start a real chat."}
             </p>
           </div>
@@ -303,7 +314,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             <LieCard
               lie={lie}
               liked={lie.likedBy?.includes(auth.currentUser?.uid || "") || false}
-              chatOpened={openChatIds.has(lie.id)}
+              chatOpened={selectedLieId === lie.id}
               onLike={() => handleLike(lie)}
               onChat={() => handleChat(lie.id)}
             />
@@ -321,12 +332,14 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         }}
       >
         <button
+          disabled={joining}
           onClick={() => {
             const selectedLieText = lies.find((l) => l.id === selectedLieId)?.text;
             onJoinCall?.(selectedLieText);
           }}
           className="cta flex-1 py-3.5 rounded-full text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-xl hover:scale-[1.02]"
           style={{
+            opacity: joining ? 0.7 : 1,
             background: selectedLieId
               ? `linear-gradient(135deg, ${scopeColor}, #7c3aed, #ec4899)`
               : "linear-gradient(135deg, #7c3aed, #ec4899, #16a34a)",
@@ -334,10 +347,14 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
           }}
         >
           <Video className="w-5 h-5 text-amber-300 fill-amber-300" />
-          <span>
-            {selectedLieId
-              ? `Join ${scope} Call with Lie`
-              : "Join Video Call"}
+          <span className="truncate">
+            {joining
+              ? "Joining..."
+              : selectedLieId
+                ? "Join Call with this Lie"
+                : presetTopic
+                  ? `Join ${presetTopic} Call`
+                  : "Join Video Call"}
           </span>
         </button>
 
