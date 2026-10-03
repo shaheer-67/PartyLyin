@@ -30,6 +30,18 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
   const [error, setError] = useState("");
 
   const [userProfile, setUserProfile] = useState<{ username?: string; photoURL?: string } | null>(null);
+  const [showMinutesBanner, setShowMinutesBanner] = useState(true);
+
+  // Auto-hide minutes banner after 2 seconds
+  useEffect(() => {
+    if (walletMinutes > 0) {
+      setShowMinutesBanner(true);
+      const timer = setTimeout(() => {
+        setShowMinutesBanner(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [walletMinutes]);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -233,20 +245,22 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
 
           {/* Minutes status banner */}
           {walletMinutes > 0 ? (
-            <div className="relative flex items-center justify-between mt-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold"
-              style={{ background: "rgba(22,163,74,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                <span>🎉 {walletMinutes} Minutes available in your wallet!</span>
+            showMinutesBanner && (
+              <div className="relative flex items-center justify-between mt-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 animate-in fade-in slide-in-from-top-1"
+                style={{ background: "rgba(22,163,74,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                  <span>🎉 {walletMinutes} Minutes available in your wallet!</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenWallet}
+                  className="text-[10px] bg-emerald-500/20 px-2 py-1 rounded-full text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                >
+                  Buy More
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onOpenWallet}
-                className="text-[10px] bg-emerald-500/20 px-2 py-1 rounded-full text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
-              >
-                Buy More
-              </button>
-            </div>
+            )
           ) : (
             <div className="relative flex items-center justify-between mt-3 px-3 py-2 rounded-2xl text-xs font-bold"
               style={{ background: "rgba(233,30,140,0.15)", border: "1px solid rgba(233,30,140,0.3)", color: "#e91e8c" }}>
