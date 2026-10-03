@@ -115,7 +115,8 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
 
   function handleChat(id: string) {
     setOpenChatIds((prev) => toggleSet(prev, id));
-    if (findPartyMode) setSelectedLieId(id);
+    // Always toggle selected lie on chat click
+    setSelectedLieId((prev) => (prev === id ? null : id));
   }
 
   async function handlePostLie() {
@@ -279,7 +280,7 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
       </div>
 
       {/* ── Lies list ────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 scroll px-4 py-3 space-y-3" style={{ paddingBottom: findPartyMode ? "5rem" : "4rem" }}>
+      <div className="flex-1 min-h-0 scroll px-4 py-3 space-y-3" style={{ paddingBottom: "5rem" }}>
         {shownLies.length === 0 && (
           <p className="text-center py-10" style={{ color: "var(--mute)" }}>
             No lies match. Post yours with the pen button.
@@ -288,12 +289,13 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         {shownLies.map((lie) => (
           <div
             key={lie.id}
+            onClick={() => handleChat(lie.id)}
+            className="cursor-pointer transition-all rounded-[24px]"
             style={
-              findPartyMode && selectedLieId === lie.id
+              selectedLieId === lie.id
                 ? {
-                    outline: `2px solid ${scopeColor}`,
-                    borderRadius: "24px",
-                    boxShadow: `0 0 0 4px ${scopeColor}22`,
+                    outline: `2px solid ${scopeColor || "#a855f7"}`,
+                    boxShadow: `0 0 0 4px ${(scopeColor || "#a855f7")}33`,
                   }
                 : undefined
             }
