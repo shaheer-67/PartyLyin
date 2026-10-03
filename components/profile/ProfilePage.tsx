@@ -21,7 +21,9 @@ import {
   Plus,
   ShieldAlert,
   Quote,
+  Share2,
 } from "lucide-react";
+import SocialShare from "@/components/SocialShare";
 
 interface ProfilePageProps {
   onSignOut?: () => void;
@@ -384,6 +386,18 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
             {myLies.length}
           </span>
         </button>
+
+        {/* Share PartyLyiN Card */}
+        <div className="glass w-full rounded-2xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Share2 className="w-5 h-5 text-purple-400 shrink-0" />
+            <div>
+              <p className="font-bold text-sm text-white">Share PartyLyiN</p>
+              <p className="text-xs text-white/50">Invite friends &amp; family</p>
+            </div>
+          </div>
+          <SocialShare />
+        </div>
 
         {/* Admin button removed as it has its own route */}
 

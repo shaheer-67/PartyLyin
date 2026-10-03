@@ -4,6 +4,7 @@ import Image from "next/image";
 import logoImg from "@/app/assets/logo.png";
 import { InstallPWA } from "@/components/InstallPWA";
 import GoogleTranslate from "@/components/GoogleTranslate";
+import SocialShare from "@/components/SocialShare";
 
 const features = [
   { I: Timer, t: "Pay for minutes, not months", d: "Buy time when you want company. No subscription, and unused minutes stay in your wallet." },
@@ -43,6 +44,7 @@ export default function Home() {
             <a href="#safety" className="hover:text-white transition-colors">Safety</a>
           </nav>
           <div className="flex items-center gap-3">
+            <SocialShare />
             <GoogleTranslate />
             <Link href="/app" className="px-4 py-2 rounded-full font-bold text-sm text-white grad flex items-center gap-1.5" style={{ boxShadow: "0 4px 14px rgba(124,58,237,0.45)" }}>
               <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
@@ -275,10 +277,11 @@ export default function Home() {
           <span className="flex items-center">
             <img src={logoImg.src} alt="PartyLyiN" style={{ height: "32px", width: "auto", transform: "scale(1.5)", transformOrigin: "left center" }} />
           </span>
-          <div className="flex gap-6 font-bold">
+          <div className="flex items-center gap-6 font-bold">
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
             <Link href="/support" className="hover:text-white transition-colors">Support</Link>
+            <SocialShare />
           </div>
           <span>© 2026 Cuptoopia.com, Inc.</span>
         </div>
