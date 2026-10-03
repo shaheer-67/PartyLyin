@@ -2,6 +2,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration from environment variables
 const firebaseConfig = {
@@ -17,8 +18,9 @@ const firebaseConfig = {
 // Initialize Firebase only once (Next.js hot reload safe)
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-export const db   = getFirestore(app);
+export const auth    = getAuth(app);
+export const db      = getFirestore(app);
+export const storage = getStorage(app);
 
 // ── Connect to Emulators in local dev ───────────────────────────────────────
 if (

@@ -222,7 +222,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (s: Screen) => void }) {
         gender,
         race,
         role:         "user",
-        walletMinutes: 0,
+        walletMinutes: 30, // 🎁 Give 30 free minutes on registration
         partiesJoined: 0,
         photoURL:      photoBase64,
         createdAt:     serverTimestamp(),

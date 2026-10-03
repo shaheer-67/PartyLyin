@@ -3,6 +3,8 @@ import { Sparkles, Globe, Zap, Timer, Mic, MessageSquareQuote, LogOut, UserPlus,
 import Image from "next/image";
 import logoImg from "@/app/assets/logo.png";
 import { InstallPWA } from "@/components/InstallPWA";
+import GoogleTranslate from "@/components/GoogleTranslate";
+
 const features = [
   { I: Timer, t: "Pay for minutes, not months", d: "Buy time when you want company. No subscription, and unused minutes stay in your wallet." },
   { I: Mic, t: "Auto-Speaker", d: "Each person gets a glowing two-minute turn. Shy people finally get a real chance to talk." },
@@ -40,10 +42,13 @@ export default function Home() {
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="#safety" className="hover:text-white transition-colors">Safety</a>
           </nav>
-          <Link href="/app" className="px-4 py-2 rounded-full font-bold text-sm text-white grad flex items-center gap-1.5" style={{ boxShadow: "0 4px 14px rgba(124,58,237,0.45)" }}>
-            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-            Register
-          </Link>
+          <div className="flex items-center gap-3">
+            <GoogleTranslate />
+            <Link href="/app" className="px-4 py-2 rounded-full font-bold text-sm text-white grad flex items-center gap-1.5" style={{ boxShadow: "0 4px 14px rgba(124,58,237,0.45)" }}>
+              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+              Register
+            </Link>
+          </div>
         </div>
       </header>
       {/* ── HERO SECTION — fills full viewport ──────────────────────── */}
@@ -153,7 +158,7 @@ export default function Home() {
           Features
         </p>
         <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight max-w-2xl leading-tight mt-2">
-          With Video Group Chats on PartyLyiN starts with selecting an{" "}
+          Video Group Chats on PartyLyiN starts with selecting an{" "}
           <span className="gtxt">Interesting Lie</span> to get the conversation started!
         </h2>
         <div className="grid md:grid-cols-3 gap-4 mt-8">

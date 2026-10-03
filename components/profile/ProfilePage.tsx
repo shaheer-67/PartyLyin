@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { doc, onSnapshot, updateDoc, collection, query, where, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "@/lib/firebase";
 import { ImageCropper } from "@/components/ui/ImageCropper";
 import {
   Grid3X3,
@@ -62,6 +63,7 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
   const [editRace, setEditRace] = useState("");
   const [editPhotoURL, setEditPhotoURL] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -177,6 +179,20 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
 
     setSaving(true);
     try {
+      let finalPhotoURL = editPhotoURL;
+
+      // If the photo is a base64 string (newly cropped), upload to Firebase Storage
+      if (editPhotoURL.startsWith("data:")) {
+        setUploadingPhoto(true);
+        try {
+          const storageRef = ref(storage, `profilePhotos/${uid}`);
+          await uploadString(storageRef, editPhotoURL, "data_url");
+          finalPhotoURL = await getDownloadURL(storageRef);
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
       await updateDoc(doc(db, "users", uid), {
         username: editUsername.trim(),
         bio: editBio.trim(),
@@ -184,17 +200,19 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
         language: editLanguage,
         gender: editGender,
         race: editRace,
-        photoURL: editPhotoURL,
+        photoURL: finalPhotoURL,
       });
 
+      setEditPhotoURL(finalPhotoURL);
       setIsEditing(false);
       setToastMsg("Profile updated successfully!");
       setTimeout(() => setToastMsg(""), 3000);
     } catch (err) {
       console.error("Error updating profile:", err);
-      alert("Failed to save profile changes.");
+      alert("Failed to save profile changes. Please try again.");
     } finally {
       setSaving(false);
+      setUploadingPhoto(false);
     }
   };
 
@@ -575,10 +593,15 @@ export default function ProfilePage({ onSignOut }: ProfilePageProps) {
               <button
                 type="button"
                 onClick={handleSaveProfile}
-                disabled={saving}
+                disabled={saving || uploadingPhoto}
                 className="flex-1 py-3 rounded-2xl grad font-extrabold text-white text-xs flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
               >
-                {saving ? (
+                {uploadingPhoto ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Uploading...
+                  </>
+                ) : saving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>

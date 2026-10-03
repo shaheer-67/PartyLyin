@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, PenLine, MapPin, PhoneCall, Filter, X } from "lucide-react";
+import { Search, PenLine, MapPin, PhoneCall, Filter, X, Video } from "lucide-react";
 import {
   collection, query, orderBy, limit, onSnapshot,
   addDoc, updateDoc, doc, increment, serverTimestamp, arrayUnion, arrayRemove
@@ -65,7 +65,6 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
       limit(50)
     );
     const unsub = onSnapshot(q, (snap) => {
-      if (snap.empty) return; // keep seed data if collection empty
       const fetched: Lie[] = snap.docs.map((d) => ({
         id: d.id,
         text: d.data().text,
@@ -74,16 +73,29 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         likedBy: d.data().likedBy || [],
         authorId: d.data().authorId,
       }));
-      setLies(fetched);
+      // Always merge Firestore lies with seed lies so new users always
+      // have content. Seed lies whose text already exists in Firestore
+      // are deduplicated to avoid duplicates.
+      const fetchedTexts = new Set(fetched.map((l) => l.text.toLowerCase()));
+      const seedFallbacks = SEED_LIES.filter(
+        (s) => !fetchedTexts.has(s.text.toLowerCase())
+      );
+      setLies([...fetched, ...seedFallbacks]);
     });
     return () => unsub();
   }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const shownLies = lies.filter(
-    (l) =>
-      l.text.toLowerCase().includes(search.toLowerCase()) &&
-      (activeTag === "All" || l.tag === activeTag)
+    (l) => {
+      const q = search.toLowerCase();
+      const matchesSearch =
+        !q ||
+        l.text.toLowerCase().includes(q) ||
+        l.tag.toLowerCase().includes(q);
+      const matchesTag = activeTag === "All" || l.tag === activeTag;
+      return matchesSearch && matchesTag;
+    }
   );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -223,7 +235,11 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
             </p>
           </div>
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => {
+              const closing = showFilters;
+              setShowFilters(!showFilters);
+              if (closing) setSearch(""); // clear stale search when closing
+            }}
             className="h-10 px-4 rounded-full glass flex items-center gap-2 shrink-0 border border-purple-500/30 shadow-lg hover:scale-105 transition-transform"
             aria-label="Toggle Filters"
           >
@@ -293,35 +309,41 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         ))}
       </div>
 
-      {/* ── "Join Party Call" sticky CTA (findPartyMode only) ────── */}
-      {findPartyMode && (
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-12" style={{ background: "linear-gradient(to top, var(--bg) 65%, transparent)" }}>
-          <button
-            onClick={onJoinCall}
-            disabled={!selectedLieId}
-            className="cta w-full py-3 rounded-full text-white font-bold text-base flex items-center justify-center gap-2 transition-opacity shadow-lg"
-            style={{
-              background: selectedLieId ? `linear-gradient(135deg,#9b1fad,#1db954)` : "rgba(128,128,128,0.3)",
-              opacity: selectedLieId ? 1 : 0.5,
-              cursor: selectedLieId ? "pointer" : "not-allowed",
-            }}
-          >
-            <PhoneCall className="w-5 h-5" />
-            {selectedLieId ? `Join ${scope} PartyLyiN Call` : "Pick a Lie First"}
-          </button>
-        </div>
-      )}
+      {/* ── Sticky bottom control bar: Join Video Call & Post Lie FAB ────── */}
+      <div
+        className="sticky bottom-0 left-0 right-0 px-4 py-3 z-30 flex items-center gap-3"
+        style={{
+          background: "linear-gradient(to top, rgba(13,10,26,0.98) 80%, transparent)",
+          backdropFilter: "blur(16px)",
+          borderTop: "1px solid rgba(124,58,237,0.25)",
+        }}
+      >
+        <button
+          onClick={onJoinCall}
+          className="cta flex-1 py-3.5 rounded-full text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-xl hover:scale-[1.02]"
+          style={{
+            background: selectedLieId
+              ? `linear-gradient(135deg, ${scopeColor}, #7c3aed, #ec4899)`
+              : "linear-gradient(135deg, #7c3aed, #ec4899, #16a34a)",
+            boxShadow: "0 6px 24px rgba(124,58,237,0.5)",
+          }}
+        >
+          <Video className="w-5 h-5 text-amber-300 fill-amber-300" />
+          <span>
+            {selectedLieId
+              ? `Join ${scope} Call with Lie`
+              : "Join Video Call"}
+          </span>
+        </button>
 
-      {/* ── Post lie FAB ─────────────────────────────────────────── */}
-      {!findPartyMode && (
         <button
           onClick={() => setShowPostModal(true)}
-          className="absolute right-5 bottom-4 w-14 h-14 rounded-full grad text-white grid place-items-center shadow-xl"
+          className="w-12 h-12 rounded-full grad text-white flex items-center justify-center shrink-0 shadow-lg hover:scale-105 transition-transform"
           aria-label="Post a lie"
         >
-          <PenLine className="w-6 h-6" />
+          <PenLine className="w-5 h-5" />
         </button>
-      )}
+      </div>
 
       {/* ── Post Lie Modal ───────────────────────────────────────── */}
       {showPostModal && (

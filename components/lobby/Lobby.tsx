@@ -5,6 +5,7 @@ import { Chips } from "@/components/ui/Chips";
 import { findOrCreateRoom } from "@/lib/matchmaking";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import GoogleTranslate from "@/components/GoogleTranslate";
 import type { CallMode, RoomType, Gender, AgeGroup, Location } from "@/types";
 
 
@@ -87,18 +88,19 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
           )}
         </button>
 
-        {/* Wallet balance */}
-        <button
-          onClick={onOpenWallet}
-          className="glass rounded-full px-4 py-2 flex items-center gap-2 font-extrabold"
-          style={{ boxShadow: "0 0 22px rgba(255,176,32,.5)" }}
-          aria-label={`Wallet: ${walletMinutes} minutes`}
-        >
-          <Timer className="w-4 h-4 text-amber-500" />
-          {walletMinutes} mins
-        </button>
-
-
+        {/* Right side actions: Google Translate + Wallet balance */}
+        <div className="flex items-center gap-2">
+          <GoogleTranslate />
+          <button
+            onClick={onOpenWallet}
+            className="glass rounded-full px-4 py-2 flex items-center gap-2 font-extrabold"
+            style={{ boxShadow: "0 0 22px rgba(255,176,32,.5)" }}
+            aria-label={`Wallet: ${walletMinutes} minutes`}
+          >
+            <Timer className="w-4 h-4 text-amber-500" />
+            {walletMinutes} mins
+          </button>
+        </div>
       </header>
 
       {/* ── Main card ────────────────────────────────────────────── */}
@@ -229,12 +231,36 @@ export default function Lobby({ walletMinutes, onOpenWallet, onFind }: LobbyProp
             </div>
           </div>
 
-          {/* No minutes warning */}
-          {walletMinutes <= 0 && (
-            <div className="relative flex items-center gap-2 mt-3 px-3 py-2 rounded-2xl text-sm font-semibold"
+          {/* Minutes status banner */}
+          {walletMinutes > 0 ? (
+            <div className="relative flex items-center justify-between mt-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold"
+              style={{ background: "rgba(22,163,74,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                <span>🎉 {walletMinutes} Minutes available in your wallet!</span>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenWallet}
+                className="text-[10px] bg-emerald-500/20 px-2 py-1 rounded-full text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+              >
+                Buy More
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex items-center justify-between mt-3 px-3 py-2 rounded-2xl text-xs font-bold"
               style={{ background: "rgba(233,30,140,0.15)", border: "1px solid rgba(233,30,140,0.3)", color: "#e91e8c" }}>
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              Buy Time - First Time or If Now No Minutes.
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>0 Minutes Left. Purchase minutes to continue PartyLyiN!</span>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenWallet}
+                className="text-[10px] bg-pink-500/20 px-2 py-1 rounded-full text-pink-300 border border-pink-500/30 hover:bg-pink-500/30"
+              >
+                Buy Time
+              </button>
             </div>
           )}
 

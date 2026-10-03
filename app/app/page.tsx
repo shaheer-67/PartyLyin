@@ -111,8 +111,14 @@ export default function AppPage() {
     setTab("lies");
   }
 
-  /** "Join Party Call" pressed inside Lies (findPartyMode) → enter call */
+  /** "Join Party Call" pressed inside Lies → enter call */
   function handleJoinCall() {
+    if (!currentRoomId) {
+      setCurrentRoomId(`room-party-${Date.now()}`);
+    }
+    if (callMinutes <= 0) {
+      setCallMinutes(walletMinutes > 0 ? walletMinutes : 15);
+    }
     setFindPartyMode(false);
     setTab("call");
   }
