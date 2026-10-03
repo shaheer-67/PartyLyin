@@ -112,9 +112,16 @@ export default function AppPage() {
   }
 
   /** "Join Party Call" pressed inside Lies → enter call */
-  function handleJoinCall() {
+  async function handleJoinCall(topic?: string) {
     if (!currentRoomId) {
-      setCurrentRoomId(`room-party-${Date.now()}`);
+      try {
+        const { quickJoinAnyRoom } = await import("@/lib/matchmaking");
+        const matchedRoomId = await quickJoinAnyRoom("Video", topic);
+        setCurrentRoomId(matchedRoomId);
+      } catch (e) {
+        console.error("Quick join error", e);
+        setCurrentRoomId(`room-party-${Date.now()}`);
+      }
     }
     if (callMinutes <= 0) {
       setCallMinutes(walletMinutes > 0 ? walletMinutes : 15);

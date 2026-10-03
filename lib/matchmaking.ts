@@ -119,6 +119,65 @@ export async function findOrCreateRoom(filters: MatchFilters): Promise<string> {
 }
 
 /**
+ * Quickly join ANY available waiting room in Firestore,
+ * or create a new public room if none is available.
+ */
+export async function quickJoinAnyRoom(mode: "Video" | "Voice" = "Video", selectedTopic?: string): Promise<string> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Not authenticated");
+
+  // 1. Search for ANY waiting room with open capacity
+  const q = query(
+    collection(db, "rooms"),
+    where("status", "==", "waiting"),
+    limit(20)
+  );
+
+  try {
+    const snap = await getDocs(q);
+    for (const roomDoc of snap.docs) {
+      const data = roomDoc.data();
+      const participants: string[] = data.participants ?? [];
+      const capacity = data.capacity ?? 5;
+
+      // Don't re-join a room you're already in
+      if (participants.includes(uid)) return roomDoc.id;
+
+      // If room has space, join it!
+      if (participants.length < capacity) {
+        const isNowActive = participants.length + 1 >= capacity;
+        await updateDoc(doc(db, "rooms", roomDoc.id), {
+          participants: arrayUnion(uid),
+          status: isNowActive ? "active" : "waiting",
+          ...(isNowActive ? { startedAt: Date.now(), skipOffset: 0 } : {})
+        });
+        return roomDoc.id;
+      }
+    }
+  } catch (err) {
+    console.warn("Quick join search error, creating room instead:", err);
+  }
+
+  // 2. If no room with space exists, create a new open room
+  const newRoom = await addDoc(collection(db, "rooms"), {
+    mode,
+    type: "Group of 5",
+    gender: "Mixed Group",
+    ageGroup: "Any Age",
+    location: "National",
+    topic: selectedTopic || "General Chit-Chat",
+    capacity: 5,
+    participants: [uid],
+    status: "waiting",
+    speakerIndex: 0,
+    speakerStartedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
+
+  return newRoom.id;
+}
+
+/**
  * Leave a room — removes uid from participants.
  * If room becomes empty, marks it as ended.
  * Returns remaining minutes to save.

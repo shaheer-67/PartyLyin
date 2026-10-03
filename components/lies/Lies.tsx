@@ -28,8 +28,8 @@ interface LiesProps {
    * Shows a discovery banner and a "Join Party Call" CTA.
    */
   findPartyMode?: boolean;
-  /** Called when user taps "Join Party Call" in findPartyMode */
-  onJoinCall?: () => void;
+  /** Called when user taps "Join Party Call" */
+  onJoinCall?: (topic?: string) => void;
 }
 
 /**
@@ -319,7 +319,10 @@ export default function Lies({ findPartyMode = false, onJoinCall }: LiesProps) {
         }}
       >
         <button
-          onClick={onJoinCall}
+          onClick={() => {
+            const selectedLieText = lies.find((l) => l.id === selectedLieId)?.text;
+            onJoinCall?.(selectedLieText);
+          }}
           className="cta flex-1 py-3.5 rounded-full text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-xl hover:scale-[1.02]"
           style={{
             background: selectedLieId
